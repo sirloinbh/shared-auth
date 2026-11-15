@@ -34,3 +34,21 @@ npm run typecheck
 ```
 
 A full local run needs Docker and a filled `.env`: `docker compose up --build`, then `http://localhost:8110/sign-in`. GitHub and Google send the browser back only to the registered `https://auth.daysofme.com` callbacks, so a real sign-in works only on the server.
+
+## Server deploy [User]
+
+Before the first deploy, the server must be 2 GB (project-standards #550, `docs/costs.md`), the `auth` DNS record and SSM read access must be applied (shared-aws-infrastructure #40), and the proxy must forward `auth.daysofme.com` (project-standards `docs/server-proxy.md`, "Changes later").
+
+First time, in an `ssh` session on the server:
+
+```bash
+sudo install -d -o ubuntu -g ubuntu /opt/shared-auth
+git clone https://github.com/sirloinbh/shared-auth.git /opt/shared-auth
+cd /opt/shared-auth && bash deploy/deploy.sh
+```
+
+`deploy/deploy.sh` creates `.env` with a new DB password on the first run, reads the six `@ssm=` keys with the server's reader key, builds and starts the containers under the shared deploy lock, and waits for `/api/health`. Later updates: `cd /opt/shared-auth && bash deploy/deploy.sh`.
+
+Then open `https://auth.daysofme.com/sign-in`, sign in with one provider, and link the other on `/account`.
+
+Not yet automatic: the deploy timer and DB backups. The database holds only the owner, linked accounts, and sessions; if it is lost, signing in again recreates them.
