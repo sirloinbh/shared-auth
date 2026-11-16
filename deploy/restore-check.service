@@ -1,0 +1,13 @@
+[Unit]
+Description=shared-auth weekly restore check of the newest database dump
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=docker
+WorkingDirectory=/opt/shared-auth
+ExecStart=/bin/bash -c 'cp /opt/shared-auth/deploy/backup.sh /tmp/shared-auth-restore-check.sh && exec /bin/bash /tmp/shared-auth-restore-check.sh verify'
+TimeoutStartSec=30min
+Nice=10

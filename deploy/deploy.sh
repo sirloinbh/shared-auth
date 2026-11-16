@@ -2,6 +2,7 @@
 # Deploys the shared sign-in on the server: run as ubuntu in /opt/shared-auth.
 #   bash deploy/deploy.sh            update to origin/main and restart
 #   bash deploy/deploy.sh --no-pull  restart the current checkout
+# deploy/autodeploy.sh runs it with --no-pull after CI passed, already holding the deploy lock.
 # Keys tagged @ssm= in .env.example are read from AWS SSM with the server's reader key
 # (SECRETS_AWS_* in /opt/project-standards/.env, project-standards ADR-0014) and exported for
 # compose only; they are never written to disk. The DB password is generated once into .env.
@@ -26,8 +27,11 @@ ssm_get() {
     python3 -c 'import json, sys; sys.stdout.write(json.load(sys.stdin)["Parameter"]["Value"])'
 }
 
-exec 9>/run/lock/apps-deploy.lock
-flock 9   # one build at a time on the shared server, like the apps
+# One build at a time on the shared server, like the apps; autodeploy holds the lock already.
+if [ -z "${APPS_DEPLOY_LOCKED:-}" ]; then
+  exec 9>/run/lock/apps-deploy.lock
+  flock 9
+fi
 
 if [ "${1:-}" != "--no-pull" ]; then
   git fetch -q origin
@@ -47,14 +51,21 @@ while read -r key name; do
 done < <(awk '/^[[:space:]]*#/ { tag = ""; if (match($0, /@ssm=[^[:space:]@]+/)) tag = substr($0, RSTART + 5, RLENGTH - 5); next }
   /^[A-Z0-9_]+=/ { if (tag != "") { split($0, kv, "="); print kv[1], tag }; tag = "" }' .env.example)
 
+# Pre-deploy dump while the old version still runs (deploy/backup.sh). Exit 3 means only the S3
+# copy failed; the deploy goes on.
+if [ -n "$(docker ps -q --filter label=com.docker.compose.project=shared-auth --filter label=com.docker.compose.service=db)" ]; then
+  bash deploy/backup.sh dump predeploy || [ $? -eq 3 ]
+fi
+
 export IMAGE_TAG
-IMAGE_TAG=$(git rev-parse --short=12 HEAD)
+IMAGE_TAG=$(git rev-parse HEAD | cut -c 1-12)
 docker compose build api
 docker compose up -d
 
 web_port=$(sed -n 's/^WEB_PORT=//p' .env | tail -n 1)
 for _ in $(seq 1 30); do
   if curl -fsS "http://127.0.0.1:${web_port:-8110}/api/health" > /dev/null 2>&1; then
+    echo "$IMAGE_TAG" > .deployed   # autodeploy compares origin/main with it
     echo "deploy: shared-auth $IMAGE_TAG is healthy"
     exit 0
   fi

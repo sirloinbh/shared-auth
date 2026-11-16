@@ -17,7 +17,7 @@ Run them in `backend/` before committing and before creating or updating a PR, a
 | `npm run typecheck` | Always |
 | `npm test` | Always (Better Auth's in-memory adapter; no database needed) |
 | `npm run build` | When you change the build, `tsconfig.json`, or the `Dockerfile` |
-| `bash -n deploy/deploy.sh` | When you change the deploy script |
+| `bash -n deploy/*.sh` | When you change a deploy script |
 
 - CI (`.github/workflows/ci.yml`, added by the central sync) runs the same checks plus the standards, supply-chain, and secret checks and a Docker build.
 - A real sign-in works only on the server (GitHub and Google call back only to the registered production URLs), so do not mark a sign-in flow as tested locally.
@@ -29,6 +29,6 @@ Run them in `backend/` before committing and before creating or updating a PR, a
 - Pin dependencies to exact versions (`backend/.npmrc` has `save-exact` and `ignore-scripts`). Raising Better Auth or another dependency needs the lockfile updated and the user's reconfirmation for the package install.
 - The port slot (web `8110`, API `3110`, DB `15410`) comes from `registry/projects.json` in `sirloinbh/project-standards`. To change it, open an issue there.
 
-## Merging is not deploying
+## Merging and deploying
 
-- Merging to `main` does not deploy: the deploy is run by the user on the server (`bash deploy/deploy.sh`, see the README). The agent does not run the deploy, does not touch the server, and does not change the production database. If a change needs a deploy, say so in "Check before merging".
+- Merging to `main` deploys once the user has installed `deploy/install-autodeploy.sh` on the server: the timer deploys a commit after its CI passed. Before that, the user deploys by hand (`bash deploy/deploy.sh`, see the README). The agent does not run the deploy, does not touch the server, and does not change the production database. If a change needs a deploy, say so in "Check before merging".

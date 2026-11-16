@@ -1,0 +1,11 @@
+[Unit]
+Description=Check origin/main of shared-auth for a new CI-passed commit every 2 minutes
+
+[Timer]
+# The apps wait 3 minutes plus 10 seconds per registry slot after boot; shared-auth is slot 10.
+OnBootSec=4min 40s
+OnUnitActiveSec=2min
+AccuracySec=15s
+
+[Install]
+WantedBy=timers.target
