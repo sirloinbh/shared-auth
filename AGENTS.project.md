@@ -19,7 +19,7 @@ Run them in `backend/` before committing and before creating or updating a PR, a
 | `npm run build` | When you change the build, `tsconfig.json`, or the `Dockerfile` |
 | `bash -n deploy/deploy.sh` | When you change the deploy script |
 
-- CI (`.github/workflows/ci.yml`, synced) runs the same checks plus the standards, supply-chain, and secret checks and a Docker build.
+- CI (`.github/workflows/ci.yml`, added by the central sync) runs the same checks plus the standards, supply-chain, and secret checks and a Docker build.
 - A real sign-in works only on the server (GitHub and Google call back only to the registered production URLs), so do not mark a sign-in flow as tested locally.
 
 ## Rules for this repo
