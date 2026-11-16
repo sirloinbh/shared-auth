@@ -1,0 +1,14 @@
+[Unit]
+Description=shared-auth daily database dump (and S3 copy when configured)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=docker
+WorkingDirectory=/opt/shared-auth
+# Copied first: a deploy may move to a new commit while this script runs.
+ExecStart=/bin/bash -c 'cp /opt/shared-auth/deploy/backup.sh /tmp/shared-auth-backup.sh && exec /bin/bash /tmp/shared-auth-backup.sh dump'
+TimeoutStartSec=30min
+Nice=10

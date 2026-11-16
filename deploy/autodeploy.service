@@ -1,0 +1,14 @@
+[Unit]
+Description=shared-auth pull-based deployment of origin/main
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=docker
+WorkingDirectory=/opt/shared-auth
+# Copied first: the deploy moves to a new commit while this script runs.
+ExecStart=/bin/bash -c 'cp /opt/shared-auth/deploy/autodeploy.sh /tmp/shared-auth-autodeploy.sh && exec /bin/bash /tmp/shared-auth-autodeploy.sh'
+TimeoutStartSec=45min
+Nice=10

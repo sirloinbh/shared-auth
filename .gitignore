@@ -2,3 +2,7 @@ node_modules/
 dist/
 .env
 *.log
+# Server state written by deploy/deploy.sh, deploy/autodeploy.sh and deploy/backup.sh
+.deployed
+.autodeploy-failed
+backups/
