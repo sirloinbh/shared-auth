@@ -1,11 +1,16 @@
 #!/bin/bash
-# Signals for healthchecks.io, like the apps (project-standards #284). The firewall only lets
-# allowed IPs in, so the server sends signals out instead, and a missing signal raises the alert.
+# Managed file. Edit it in sirloinbh/project-standards templates/deploy/deploy/
+# Signals for healthchecks.io (#284). The firewall only lets allowed IPs in, so nothing outside
+# can probe the server; the server sends signals out instead, and a missing signal raises the
+# alert, also when the whole server is down.
 #   notify.sh ping <check> ok|fail [message]   one signal; the message is the ping body
-# Checks and their .env keys (the ping URL holds a secret UUID; it is never printed):
+#   notify.sh health                           check /api/health and ping the health check
+# Checks and their server .env keys (the ping URL holds a secret UUID; it is never printed):
+#   health  HEALTHCHECK_URL_HEALTH    every 5 minutes, shared-auth-health.timer
 #   deploy  HEALTHCHECK_URL_DEPLOY    every autodeploy run (2 minutes)
 #   backup  HEALTHCHECK_URL_BACKUP    the nightly dump
 #   restore HEALTHCHECK_URL_RESTORE   the weekly restore check
+#   report  HEALTHCHECK_URL_REPORT    the daily server report
 # A check without a URL in .env is skipped. A failed ping never fails the caller.
 set -uo pipefail
 cd /opt/shared-auth
@@ -15,7 +20,7 @@ env_value() { sed -n "s/^$1=//p" .env 2>/dev/null | tail -n 1 | tr -d "\"'\r"; }
 ping_check() {
   local check=$1 status=$2 message=${3:-} key url
   case "$check" in
-    deploy | backup | restore) ;;
+    health | deploy | backup | restore | report) ;;
     *)
       echo "unknown check: $check" >&2
       return 2
@@ -39,10 +44,23 @@ ping_check() {
   return 0
 }
 
+health() {
+  local web_port
+  web_port=$(env_value WEB_PORT)
+  web_port=${web_port:-8110}
+  if curl -fsS -m 10 -o /dev/null "http://127.0.0.1:$web_port/api/health"; then
+    ping_check health ok "health ok on port $web_port"
+  else
+    ping_check health fail "GET http://127.0.0.1:$web_port/api/health failed"
+    return 1
+  fi
+}
+
 case "${1:-}" in
   ping) ping_check "${2:-}" "${3:-}" "${4:-}" ;;
+  health) health ;;
   *)
-    echo "usage: notify.sh ping <check> ok|fail [message]" >&2
+    echo "usage: notify.sh ping <check> ok|fail [message] | health" >&2
     exit 2
     ;;
 esac

@@ -1,9 +1,10 @@
+# Managed file. Edit it in sirloinbh/project-standards templates/deploy/deploy/
 [Unit]
 Description=Check origin/main of shared-auth for a new CI-passed commit every 2 minutes
 
 [Timer]
-# The apps wait 3 minutes plus 10 seconds per registry slot after boot; shared-auth is slot 10.
-OnBootSec=4min 40s
+# The boot delay grows by 10 seconds per registry slot (slot 10) so apps do not all check at once (ADR-0009).
+OnBootSec=3min 100s
 OnUnitActiveSec=2min
 AccuracySec=15s
 
