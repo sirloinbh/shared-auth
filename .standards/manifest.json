@@ -1,5 +1,5 @@
 {
-  "centralSha": "bbabf0f5d8f338ca0229fa64aad921e6a59c2b37",
+  "centralSha": "018b16251d584eccd1e8f39e6ac31de4136961bd",
   "profile": "service",
   "project": null,
   "files": {
@@ -90,7 +90,7 @@
     },
     ".github/workflows/ci.yml": {
       "mode": "full",
-      "sha256": "8a491415b31e06b14384e936a0a1caf8bbb98399e1722c1afb785b1aced31b10",
+      "sha256": "21de265ee240170c548d69dac7c91f5d0ec14f59f1e3a31127f7d03dda279a14",
       "source": "templates/service/.github/workflows/ci.yml.tmpl"
     },
     ".gitignore": {
@@ -170,7 +170,7 @@
     },
     "deploy/autodeploy.sh": {
       "mode": "full",
-      "sha256": "f99281189d2f3a4c10ddbbfd69478f0752bfbbd0dd02c242a2d51ce03c6cb57f",
+      "sha256": "9b2732eb22e325c5b34d65299d258822ee8f7d758c13be9473884fea2ffbef67",
       "source": "templates/deploy/deploy/autodeploy.sh.tmpl"
     },
     "deploy/autodeploy.timer": {
