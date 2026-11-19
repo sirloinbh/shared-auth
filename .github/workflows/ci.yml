@@ -6,10 +6,14 @@ on: [push, pull_request]
 
 permissions:
   contents: read
+  # write is the most the image-push job of the reusable workflow may use; every other job gets read (ADR-0023, #757).
+  packages: write
 
 jobs:
   ci:
-    uses: sirloinbh/project-standards/.github/workflows/reusable-service-ci.yml@9a7a6d048ac51a3d80516751b2d04f9d8cb487c1
+    uses: sirloinbh/project-standards/.github/workflows/reusable-service-ci.yml@7b6b68bfa411dbee6b533c532bbdb45d66865996
     with:
       node-version: '24.21.0'
       npm-version: '11.19.0'
+      push-images: false
+      image-prefix: 'ghcr.io/sirloinbh/shared-auth'
