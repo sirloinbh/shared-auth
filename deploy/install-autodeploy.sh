@@ -1,5 +1,6 @@
 #!/bin/bash
-# Installs and starts the pull-based deployment timer. Run once as root on the server:
+# Managed file. Edit it in sirloinbh/project-standards templates/deploy/deploy/
+# Installs and starts the pull-based deployment timer. Run as root on the server:
 #   sudo bash /opt/shared-auth/deploy/install-autodeploy.sh
 set -euo pipefail
 dir=$(cd "$(dirname "$0")" && pwd)

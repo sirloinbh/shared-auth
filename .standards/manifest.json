@@ -1,5 +1,5 @@
 {
-  "centralSha": "90927f0d12e467d587218467f2da9f404032e2c1",
+  "centralSha": "bbabf0f5d8f338ca0229fa64aad921e6a59c2b37",
   "profile": "service",
   "project": null,
   "files": {
@@ -10,7 +10,7 @@
     },
     ".claude/hooks/block-package-installs.mjs": {
       "mode": "full",
-      "sha256": "56de5f100cf31c4acf790c7277912779af129786596333dc206bbf1a134f756f",
+      "sha256": "10a3bdaa5597bde0580451adf8515b9e3997714b6fc2e82419f24ee28a5bfc19",
       "source": "templates/common/.claude/hooks/block-package-installs.mjs"
     },
     ".claude/hooks/pc-setup-notice.mjs": {
@@ -40,12 +40,12 @@
     },
     ".claude/skills/std-git-writing/SKILL.md": {
       "mode": "full",
-      "sha256": "56a95a2f0835461785805780b7e053481de85c5ce302d9784e5d7f905cca9936",
+      "sha256": "25fa4473adec616b1c0b2ec63963481e530d83e270d79ccd01afeee46c4b32ee",
       "source": "templates/common/skills/std-git-writing/SKILL.md"
     },
     ".claude/skills/std-implementation/SKILL.md": {
       "mode": "full",
-      "sha256": "fe32c759e884da7f5f04e62ef6778037d9efa19da734d95da00b9aa0a7b21c77",
+      "sha256": "568059a804122cdb808d79946978be4a028a3873131f2df6249b9d7c97b31a13",
       "source": "templates/common/skills/std-implementation/SKILL.md"
     },
     ".claude/skills/std-session-notes/SKILL.md": {
@@ -90,7 +90,7 @@
     },
     ".github/workflows/ci.yml": {
       "mode": "full",
-      "sha256": "354cd8125b6e24c7398379ac013b5cb4cae7ce99677454325931424f85639e30",
+      "sha256": "8a491415b31e06b14384e936a0a1caf8bbb98399e1722c1afb785b1aced31b10",
       "source": "templates/service/.github/workflows/ci.yml.tmpl"
     },
     ".gitignore": {
@@ -105,7 +105,7 @@
     },
     ".standards/check.mjs": {
       "mode": "full",
-      "sha256": "fae1d3fa14cdb90a9320ed35e5565a7f382448570b87badf4e7c1e3b6130f8e6",
+      "sha256": "271a730f1ffc9f3275f0ac10c2e0baff52a584b0036f7bbe4f86f57fa0327f4a",
       "source": "scripts/standards-check.mjs"
     },
     ".standards/ioc-scan.mjs": {
@@ -135,7 +135,7 @@
     },
     ".standards/lib/render.mjs": {
       "mode": "full",
-      "sha256": "8b832e4746f8b731d087642551f837190dd20172a1f7789c153efae55d699817",
+      "sha256": "109f91dba8789a498bd342610e3ebda04662a74b420694efbf2beab8bdbd058d",
       "source": "scripts/lib/render.mjs"
     },
     ".standards/lockfiles.mjs": {
@@ -163,6 +163,76 @@
       "sha256": "249fb1922db3e1b534a5a6b6293cb1c37915daed811364b436c3d1fa7946d6fc",
       "source": "templates/service/CLAUDE.md.tmpl"
     },
+    "deploy/autodeploy.service": {
+      "mode": "full",
+      "sha256": "f02baaf958cb6e93921967597f83b12dadade17b0c68820a55e0535dbd080229",
+      "source": "templates/deploy/deploy/autodeploy.service.tmpl"
+    },
+    "deploy/autodeploy.sh": {
+      "mode": "full",
+      "sha256": "f99281189d2f3a4c10ddbbfd69478f0752bfbbd0dd02c242a2d51ce03c6cb57f",
+      "source": "templates/deploy/deploy/autodeploy.sh.tmpl"
+    },
+    "deploy/autodeploy.timer": {
+      "mode": "full",
+      "sha256": "83475fc6c874d6e5225d495af0412b6b48434d388278551386fb60af3cc45b1e",
+      "source": "templates/deploy/deploy/autodeploy.timer.tmpl"
+    },
+    "deploy/backup.service": {
+      "mode": "full",
+      "sha256": "8fbce218e61b6c971e13ec5f2dbf0a09c4c79606770c18f335b6fa465c15a168",
+      "source": "templates/deploy/deploy/backup.service.tmpl"
+    },
+    "deploy/backup.sh": {
+      "mode": "full",
+      "sha256": "7cd5b777dfae14f59e1afdee3627201529672784f5c0680cf582d13cdce7b0bf",
+      "source": "templates/deploy/deploy/backup.sh.tmpl"
+    },
+    "deploy/backup.timer": {
+      "mode": "full",
+      "sha256": "46e5685fbb1204bab40a8d0fe4da10b20b2e932b724de15f6684c760cf4ff8ac",
+      "source": "templates/deploy/deploy/backup.timer.tmpl"
+    },
+    "deploy/deploy.sh": {
+      "mode": "full",
+      "sha256": "845b15cc73d6fcfffe8b30315d1971d3a895da6af8e1ae40db20a0c04f10ee9d",
+      "source": "templates/service/deploy/deploy.sh.tmpl"
+    },
+    "deploy/install-autodeploy.sh": {
+      "mode": "full",
+      "sha256": "cf4fc0d358a3f65a8519e196b69078f5fef1b496516ccee5446e7bbd4d7828db",
+      "source": "templates/deploy/deploy/install-autodeploy.sh.tmpl"
+    },
+    "deploy/install-backup.sh": {
+      "mode": "full",
+      "sha256": "f766877faa0e2c8028cbf862700478039ba6b1f656f6318303a31b82c7a1a0af",
+      "source": "templates/deploy/deploy/install-backup.sh.tmpl"
+    },
+    "deploy/notify.sh": {
+      "mode": "full",
+      "sha256": "9a1c10ca9c4dcb839a746f7fd38d2f435aeb96d1deadf4a904f8e1fc11717a66",
+      "source": "templates/deploy/deploy/notify.sh.tmpl"
+    },
+    "deploy/remote-deploy.sh": {
+      "mode": "full",
+      "sha256": "369178c5783ea901c1141454f51111b19ffce7ba77c831ac21932a30b8c2ccc8",
+      "source": "templates/deploy/deploy/remote-deploy.sh.tmpl"
+    },
+    "deploy/restore-check.service": {
+      "mode": "full",
+      "sha256": "87758740b3c8aa6be5214e37936feb80920d8d660d57c7b650bc3a6082598a14",
+      "source": "templates/deploy/deploy/restore-check.service.tmpl"
+    },
+    "deploy/restore-check.timer": {
+      "mode": "full",
+      "sha256": "d83d4f2608de0b6d032ea279d5224183e9af6976676cde5e21f1059ecb430ecd",
+      "source": "templates/deploy/deploy/restore-check.timer.tmpl"
+    },
+    "deploy/ssm-get.sh": {
+      "mode": "full",
+      "sha256": "f6a119028e92e408b0c8df84c336baa6b073bbf221b70be33c7e5976e39e66e2",
+      "source": "templates/deploy/deploy/ssm-get.sh.tmpl"
+    },
     "skills/std-backlog/SKILL.md": {
       "mode": "full",
       "sha256": "d78c85e0ab7e5cde745e013ab27d62b9cbcb8979012ee2dc5fc7b80f309fb6a4",
@@ -180,12 +250,12 @@
     },
     "skills/std-git-writing/SKILL.md": {
       "mode": "full",
-      "sha256": "56a95a2f0835461785805780b7e053481de85c5ce302d9784e5d7f905cca9936",
+      "sha256": "25fa4473adec616b1c0b2ec63963481e530d83e270d79ccd01afeee46c4b32ee",
       "source": "templates/common/skills/std-git-writing/SKILL.md"
     },
     "skills/std-implementation/SKILL.md": {
       "mode": "full",
-      "sha256": "fe32c759e884da7f5f04e62ef6778037d9efa19da734d95da00b9aa0a7b21c77",
+      "sha256": "568059a804122cdb808d79946978be4a028a3873131f2df6249b9d7c97b31a13",
       "source": "templates/common/skills/std-implementation/SKILL.md"
     },
     "skills/std-session-notes/SKILL.md": {

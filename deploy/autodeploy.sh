@@ -1,6 +1,6 @@
 #!/bin/bash
+# Managed file. Edit it in sirloinbh/project-standards templates/deploy/deploy/
 # Pull-based continuous deployment, run every 2 minutes by shared-auth-autodeploy.timer.
-# The same checks as the apps (project-standards templates/app/deploy/autodeploy.sh).
 # Deploys origin/main only after every workflow run of the repository for that commit passed.
 # The firewall stays closed to GitHub: the server polls the public repository and API.
 #   autodeploy.sh            check and deploy if needed
@@ -13,7 +13,7 @@ app=/opt/shared-auth
 # pending: none reported yet or still running.
 # Runs GitHub starts on its own (event "dynamic": Dependabot updates, CodeQL default setup)
 # do not count: a Dependabot update failing for lack of a fixed version, or CodeQL failing to
-# download its CLI, says nothing about the commit, and those runs cannot be re-run (project-standards #417).
+# download its CLI, says nothing about the commit, and those runs cannot be re-run (#417).
 ci_state() {
   python3 -c '
 import json, sys
@@ -32,10 +32,10 @@ if [ "${1:-}" = ci-state ]; then
 fi
 
 cd "$app"
-# healthchecks.io signal on every run that decides something (project-standards #284). A run
-# that only finds the lock busy sends nothing; the check's grace time covers it.
+# healthchecks.io signal on every run that decides something (#284). A run that only finds the
+# lock busy sends nothing; the check's grace time covers it.
 signal() { if [ -f deploy/notify.sh ]; then bash deploy/notify.sh ping deploy "$@" || true; fi; }
-# One lock for every app and shared-auth on the server (ADR-0009): builds share 2 GB of memory, so only
+# One lock for every app on the server (ADR-0009): builds share 2 GB of memory, so only
 # one app builds or deploys at a time. A busy lock means "try again on the next run".
 exec 9> /run/lock/apps-deploy.lock
 flock -n 9 || exit 0
@@ -68,9 +68,10 @@ case "$state" in
     ;;
 esac
 
-# Move main to the commit CI passed (not to a newer origin/main) and run its deploy script.
-# The service runs a copy of this script, so the update cannot change it mid-run.
-if git merge --quiet --ff-only "$full" && APPS_DEPLOY_LOCKED=1 bash deploy/deploy.sh --no-pull; then
+# Run the deploy script of the new commit (git replaces files, the running bash keeps
+# the old inode, so checking out under a running script is safe).
+git checkout --quiet --detach "$full"
+if APPS_DEPLOY_LOCKED=1 bash deploy/remote-deploy.sh deploy "$full"; then
   rm -f .autodeploy-failed
   signal ok "deployed $sha"
 else

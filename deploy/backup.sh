@@ -1,29 +1,29 @@
 #!/bin/bash
-# Database backups of shared-auth on the Lightsail server, the same as the apps
-# (project-standards templates/app/deploy/backup.sh, #262).
+# Managed file. Edit it in sirloinbh/project-standards templates/deploy/deploy/
+# Database backups of shared-auth on the Lightsail server (#262).
 #   backup.sh dump [label]  pg_dump to /var/backups/auth (14 days), row counts beside it,
 #                           and a copy to S3 when the server .env names a bucket
 #                           (exit 3: dumped, but the S3 copy failed)
 #   backup.sh verify        restore the newest dump into a throwaway postgres container and
 #                           compare its row counts with the ones taken at dump time
 # Started daily by shared-auth-backup.timer, weekly by shared-auth-restore-check.timer,
-# and by deploy.sh before each deploy (label "predeploy").
+# and by remote-deploy.sh before each deploy (label "predeploy").
 set -euo pipefail
 cd /opt/shared-auth
 db=auth
 dir=/var/backups/$db
-# Before install-backup.sh created the server folder, dumps stay in the repo folder (ignored by Git).
+# Before install-backup.sh created the server folder, dumps stay in the app folder (ignored by Git).
 if [ ! -w "$dir" ]; then dir=$PWD/backups; fi
 mkdir -p "$dir"
-# The running database container. Not through docker compose: compose.yaml requires the secrets
-# that deploy.sh reads from SSM, and this script runs without them.
+# The running database container, found by its compose labels. Not through docker compose: a compose.yaml
+# may require secrets that deploy/remote-deploy.sh reads from SSM, and this script runs without them (#696).
 db_container() {
   docker ps -q --filter label=com.docker.compose.project=shared-auth --filter label=com.docker.compose.service=db | head -n 1
 }
 
 env_value() { sed -n "s/^$1=//p" .env 2>/dev/null | tail -n 1 | tr -d "\"'\r"; }
 # Keys every app shares (the S3 backup pair) live in one server file outside the apps
-# (ADR-0010). A value in this repo's .env is the fallback.
+# (ADR-0010). A value in the app .env is the fallback.
 shared_env=${STANDARDS_ENV_FILE:-/opt/project-standards/.env}
 shared_value() {
   local v=""
@@ -33,7 +33,7 @@ shared_value() {
 }
 
 # One exit handler: removes the restore-check container and sends the healthchecks.io signal
-# (deploy/notify.sh, project-standards #284) for the nightly dump and the weekly restore check.
+# (deploy/notify.sh, #284) for the nightly dump and the weekly restore check.
 signal_check=""
 signal_message=""
 restore_container=""
@@ -57,6 +57,13 @@ COUNT_SQL="select table_schema || '.' || table_name || '|' ||
   from information_schema.tables
   where table_schema not in ('pg_catalog', 'information_schema') and table_type = 'BASE TABLE'
   order by 1"
+# Audit log retention (#553, docs/audit-log.md): rows older than 365 days (AUDIT_RETENTION_DAYS in
+# backend/src/standard/audit.ts), once they are in tonight's dump. Nothing happens before the app has the table.
+PRUNE_SQL="do \$\$ begin
+  if to_regclass('public.audit_log') is not null then
+    delete from audit_log where at < now() - make_interval(days => 365);
+  end if;
+end \$\$"
 
 # Uploads one file with SigV4 signing built into curl, so the server needs no AWS CLI.
 # The key pair goes to curl on standard input and never appears in the process list or the log.
@@ -83,28 +90,32 @@ upload() {
 }
 
 dump() {
-  local label=${1:-} name file container
-  container=$(db_container)
-  if [ -z "$container" ]; then echo "the shared-auth database is not running" >&2; exit 1; fi
+  local label=${1:-} name file dbc
   # One dump at a time across the apps on the server, so they do not compete for memory.
   exec 8> /run/lock/apps-backup.lock
   flock -w 900 8 || { echo "another backup is running" >&2; exit 4; }
+  dbc=$(db_container)
+  if [ -z "$dbc" ]; then echo "the shared-auth database is not running" >&2; exit 1; fi
   name=$db-$(date +%F-%H%M%S)${label:+-$label}
   file=$dir/$name.sql.gz
   # --no-owner keeps the dump restorable into a database whose user has another name.
-  docker exec "$container" sh -c 'pg_dump --no-owner --no-privileges -U "$POSTGRES_USER" -d "$POSTGRES_DB"' | gzip > "$file.part"
+  docker exec "$dbc" sh -c 'pg_dump --no-owner --no-privileges -U "$POSTGRES_USER" -d "$POSTGRES_DB"' | gzip > "$file.part"
   mv "$file.part" "$file"
   # Row counts are for the weekly restore check only: a failure here must not fail the dump
   # (or block a deploy). Without the file, the next restore check reports it.
-  if ! docker exec "$container" sh -c 'psql -At -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "$0"' "$COUNT_SQL" > "$dir/$name.counts"; then
+  if ! docker exec "$dbc" sh -c 'psql -At -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "$0"' "$COUNT_SQL" > "$dir/$name.counts"; then
     echo "row counts failed; $file has no .counts for the restore check" >&2
     rm -f "$dir/$name.counts"
   fi
   find "$dir" -maxdepth 1 \( -name "$db-*.sql.gz" -o -name "$db-*.counts" \) -mtime +14 -delete
+  # Only the nightly dump prunes; a failed prune is retried the next night and does not fail the backup.
+  if [ -z "$label" ] && ! docker exec "$dbc" sh -c 'psql -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "$0"' "$PRUNE_SQL"; then
+    echo "audit_log retention delete failed" >&2
+  fi
   echo "dumped $file ($(du -h "$file" | cut -f1))"
   signal_message="$(basename "$file") $(du -h "$file" | cut -f1)"
   # Exit 3: the local dump is fine but the S3 copy failed. The timer shows it as failed;
-  # a deploy goes on (deploy.sh accepts 3).
+  # a deploy goes on (remote-deploy.sh accepts 3).
   if ! { upload "$file" && { [ ! -f "$dir/$name.counts" ] || upload "$dir/$name.counts"; }; }; then
     echo "S3 copy failed; the local dump $file is kept" >&2
     exit 3
