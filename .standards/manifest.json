@@ -1,5 +1,5 @@
 {
-  "centralSha": "c8ec08e7d9887071c29524c1817ccced8e22a625",
+  "centralSha": "e01551569b0b45070cb6cd15a7bcd3cf547a358a",
   "profile": "service",
   "project": null,
   "files": {
@@ -95,7 +95,7 @@
     },
     ".github/workflows/ci.yml": {
       "mode": "full",
-      "sha256": "2fe0c4acbad4b75f6c4b1a779c57c76d1b39480a2daeb15e3da07efff5b9fe2c",
+      "sha256": "458a9ef15e45a0c32debfabb2d270331ab8b631efa2606c2ec0c8a14e445136e",
       "source": "templates/service/.github/workflows/ci.yml.tmpl"
     },
     ".gitignore": {
@@ -110,7 +110,7 @@
     },
     ".standards/check.mjs": {
       "mode": "full",
-      "sha256": "ef4c3be007af70fd1701cc63d590f0dc4aa52a4aeaa34526f5e6f9abc1369ba7",
+      "sha256": "173364dd454da9a5a772d7a597391b2e5a760d1f3907bf73d6b1c6faa486ee6a",
       "source": "scripts/standards-check.mjs"
     },
     ".standards/ioc-scan.mjs": {
