@@ -1,5 +1,5 @@
 {
-  "centralSha": "50b02f298cc1588a1f57a09c7fc49f32976afcae",
+  "centralSha": "686734e92c60717d304d1655535b297f4c177720",
   "profile": "service",
   "project": null,
   "files": {
@@ -22,6 +22,11 @@
       "mode": "full",
       "sha256": "e67554ab7dd656ab57a1690d5a0ef18df592c96c562f482f92beb78045286003",
       "source": "templates/common/.claude/settings.json.tmpl"
+    },
+    ".claude/skills/orca-lanes/SKILL.md": {
+      "mode": "full",
+      "sha256": "c82722c8e36622482062325abb0761deb43b7d5b23bc33f5f93d27e973c2612c",
+      "source": "templates/common/skills/orca-lanes/SKILL.md"
     },
     ".claude/skills/std-backlog/SKILL.md": {
       "mode": "full",
@@ -95,7 +100,7 @@
     },
     ".github/workflows/ci.yml": {
       "mode": "full",
-      "sha256": "458a9ef15e45a0c32debfabb2d270331ab8b631efa2606c2ec0c8a14e445136e",
+      "sha256": "f1da4aef83afc74854c361bf5764832acbe104be858fd7c28706d7a5c838db1e",
       "source": "templates/service/.github/workflows/ci.yml.tmpl"
     },
     ".gitignore": {
@@ -180,7 +185,7 @@
     },
     "deploy/autodeploy.sh": {
       "mode": "full",
-      "sha256": "fdb0ad2654569814497218956338851cbed395f2fbd66b51dd88b5dbd8cbb2d7",
+      "sha256": "72ad79dd3b46d52ed91b7881bd5df16725b78dd31877e0f7b39c6d4bac22bd2c",
       "source": "templates/deploy/deploy/autodeploy.sh.tmpl"
     },
     "deploy/autodeploy.timer": {
@@ -242,6 +247,11 @@
       "mode": "full",
       "sha256": "f6a119028e92e408b0c8df84c336baa6b073bbf221b70be33c7e5976e39e66e2",
       "source": "templates/deploy/deploy/ssm-get.sh.tmpl"
+    },
+    "skills/orca-lanes/SKILL.md": {
+      "mode": "full",
+      "sha256": "c82722c8e36622482062325abb0761deb43b7d5b23bc33f5f93d27e973c2612c",
+      "source": "templates/common/skills/orca-lanes/SKILL.md"
     },
     "skills/std-backlog/SKILL.md": {
       "mode": "full",
