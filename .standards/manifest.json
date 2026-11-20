@@ -1,5 +1,5 @@
 {
-  "centralSha": "9c1f654987fbeb535abcfddb0cb2bf5828c53c10",
+  "centralSha": "c8ec08e7d9887071c29524c1817ccced8e22a625",
   "profile": "service",
   "project": null,
   "files": {
@@ -180,7 +180,7 @@
     },
     "deploy/autodeploy.sh": {
       "mode": "full",
-      "sha256": "a61febb3effcb4663ba86a66f3907416373735a0a9d748f3dd473faf3075fcf7",
+      "sha256": "fdb0ad2654569814497218956338851cbed395f2fbd66b51dd88b5dbd8cbb2d7",
       "source": "templates/deploy/deploy/autodeploy.sh.tmpl"
     },
     "deploy/autodeploy.timer": {
