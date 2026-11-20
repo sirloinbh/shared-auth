@@ -148,7 +148,7 @@ case "${1:-}" in
     # Apps migrate as a step with the migrations mounted; a shared service's image runs them when it starts.
     if [ "image" = step ]; then
       IMAGE_TAG="$tag" docker compose run --rm --no-deps \
-        -v "$PWD/database/migrations:/database/migrations:ro" api node dist/migrate.js
+        -v "$PWD/database/migrations:/app/database/migrations:ro" api node dist/migrate.js
     fi
     save_api_errors
     IMAGE_TAG="$tag" docker compose up -d
@@ -167,9 +167,13 @@ case "${1:-}" in
     keep="$tag|$(cat .previous 2>/dev/null || echo none)"
     # Split quotes keep the Go template away from the central template renderer.
     tag_format='{''{.Tag}}'
+    # Pulled images carry two names, the local one compose uses and the ghcr.io/sirloinbh/ one (#755); an
+    # image is freed only when both names are gone, so both repositories are pruned (#870). Without pulls the second one is empty.
     for image in shared-auth-backend; do
-      docker image ls "$image" --format "$tag_format" | { grep -vxE "$keep" || true; } |
-        xargs -r -I{} docker image rm "$image:{}" > /dev/null
+      for repo in "$image" "ghcr.io/sirloinbh/$image"; do
+        docker image ls "$repo" --format "$tag_format" | { grep -vxE "$keep" || true; } |
+          xargs -r -I{} docker image rm "$repo:{}" > /dev/null
+      done
     done
     # Repeated deploys must not grow the disk (and so the snapshot size) without bound.
     docker builder prune -f --filter until=168h > /dev/null
