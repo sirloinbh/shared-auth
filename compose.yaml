@@ -14,7 +14,7 @@ services:
       interval: 5s
       retries: 10
   api:
-    build: ./backend
+    build: { context: ./backend, secrets: [npm_token] }
     image: shared-auth-backend:${IMAGE_TAG:-local}
     restart: unless-stopped
     depends_on:
@@ -39,5 +39,9 @@ services:
 networks:
   shared-auth:
     name: shared-auth
+# The backend Dockerfile reads the GitHub Packages token as a BuildKit secret, so it never lands in an image layer.
+secrets:
+  npm_token:
+    environment: NODE_AUTH_TOKEN
 volumes:
   db-data:
