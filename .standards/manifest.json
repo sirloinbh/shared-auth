@@ -1,5 +1,5 @@
 {
-  "centralSha": "686734e92c60717d304d1655535b297f4c177720",
+  "centralSha": "996f0279c4e665ce750573b73cc1935a31e10713",
   "profile": "service",
   "project": null,
   "files": {
@@ -88,6 +88,11 @@
       "sha256": "2bbd8b0637dbc8eac24d9bb8018a5bf2ebe3f4d52a3470bff9e9a7976390a544",
       "source": "templates/common/.gitattributes.tmpl"
     },
+    ".github/dependabot.yml": {
+      "mode": "full",
+      "sha256": "603f07f322e22b83ecedb134ff75b898fb5c674f35428a2237c926def49f7f28",
+      "source": "templates/service/.github/dependabot.yml"
+    },
     ".github/ISSUE_TEMPLATE/task.md": {
       "mode": "full",
       "sha256": "d59421e5e79b2ae517fc351c7dc0e3eb7001205b935addc781c458d101cdf11d",
@@ -107,6 +112,16 @@
       "mode": "section",
       "sha256": "fc3607e334d58265a88f25d8f34ea1f26ee71c420f2e97bc3fc7d249ca976614",
       "source": "templates/common/.gitignore.tmpl"
+    },
+    ".node-version": {
+      "mode": "full",
+      "sha256": "73fb1b615e2043a933be1c0895cde4358036acc28d785692509b822aa53c761f",
+      "source": "templates/service/.node-version.tmpl"
+    },
+    ".nvmrc": {
+      "mode": "full",
+      "sha256": "73fb1b615e2043a933be1c0895cde4358036acc28d785692509b822aa53c761f",
+      "source": "templates/service/.nvmrc.tmpl"
     },
     ".standards/blocked-packages.json": {
       "mode": "full",
@@ -172,6 +187,15 @@
       "mode": "full",
       "sha256": "a802960911f076f337d3a1f2345b17b3a527411777bcec06f9870a02d6dd8089",
       "source": "templates/backend/backend/Dockerfile.tmpl"
+    },
+    "backend/package.json": {
+      "mode": "fields",
+      "fields": {
+        "packageManager": "npm@11.19.0",
+        "engines.node": "24.21.0",
+        "engines.npm": "11.19.0"
+      },
+      "source": "templates/index.json"
     },
     "CLAUDE.md": {
       "mode": "full",
