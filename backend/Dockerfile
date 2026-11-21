@@ -2,8 +2,8 @@
 # The package auth token is received only as a BuildKit secret (npm_token). It is not passed through ARG or ENV, so it does not stay in an image layer.
 FROM node:24.21.0-alpine AS build
 WORKDIR /app
-COPY package*.json .npmrc ./
 RUN npm install --global npm@11.19.0 --ignore-scripts
+COPY package*.json .npmrc ./
 RUN --mount=type=secret,id=npm_token NODE_AUTH_TOKEN="$(cat /run/secrets/npm_token 2>/dev/null)" npm ci --ignore-scripts
 COPY tsconfig.json ./
 COPY src ./src
