@@ -53,7 +53,7 @@ Then open `https://auth.daysofme.com/sign-in`, sign in with one provider, and li
 
 ### Automatic deploys and backups
 
-The same timers as the apps, installed once as root (shared-auth#7):
+The same timers as the apps except the 5-minute health check, installed once as root (shared-auth#7). The daily report timer came later (#11, project-standards#967): on a server that already has the other timers, run `install-backup.sh` once more to add it (user step; it reinstalls the backup and restore-check units unchanged):
 
 ```bash
 sudo bash /opt/shared-auth/deploy/install-autodeploy.sh
@@ -65,7 +65,8 @@ sudo bash /opt/shared-auth/deploy/install-backup.sh
 | `shared-auth-autodeploy` | Every 2 minutes: when `origin/main` moved and every workflow run for that commit passed, moves the checkout to it and runs `deploy/deploy.sh --no-pull`. A failed commit is skipped until the next one (`.autodeploy-failed`). Until CI arrives with the central sync, no commit has a passing run, so it waits |
 | `shared-auth-backup` | 03:30 Seoul: `pg_dump` to `/var/backups/auth` (14 days) with row counts, copied to `s3://<backup bucket>/shared-auth/` when `/opt/project-standards/.env` names the bucket |
 | `shared-auth-restore-check` | Sunday 04:30 Seoul: restores the newest dump into a throwaway container and compares the row counts |
+| `shared-auth-report` | 04:00 Seoul: `deploy/report.sh` sends one line to the healthchecks.io `report` check: memory, disk, the deployed commit, container memory, and the API error count with up to 5 `<requestId> <status> <path>` entries (lines with `"level":"error"` since the last report, plus the lines `deploy/remote-deploy.sh` saved from a replaced container). The signal fails over `REPORT_MEMORY_PERCENT` (85), `REPORT_DISK_PERCENT` (90), or `REPORT_ERROR_LIMIT` (0) in this repo's `.env`. To see the line only: `bash /opt/shared-auth/deploy/report.sh line` |
 
-`deploy/deploy.sh` also dumps the database before each deploy (label `predeploy`). It takes the server's deploy lock (`/run/lock/apps-deploy.lock`) and the dumps take the backup lock (`/run/lock/apps-backup.lock`), shared with the apps. Optional healthchecks.io signals: `HEALTHCHECK_URL_DEPLOY`, `HEALTHCHECK_URL_BACKUP`, and `HEALTHCHECK_URL_RESTORE` in this repo's `.env`. Logs: `journalctl -u shared-auth-autodeploy` (and `-backup`, `-restore-check`).
+`deploy/deploy.sh` also dumps the database before each deploy (label `predeploy`). It takes the server's deploy lock (`/run/lock/apps-deploy.lock`) and the dumps take the backup lock (`/run/lock/apps-backup.lock`), shared with the apps. Optional healthchecks.io signals: `HEALTHCHECK_URL_DEPLOY`, `HEALTHCHECK_URL_BACKUP`, `HEALTHCHECK_URL_RESTORE`, and `HEALTHCHECK_URL_REPORT` in this repo's `.env`. Logs: `journalctl -u shared-auth-autodeploy` (and `-backup`, `-restore-check`, `-report`).
 
 The database holds only the owner, linked accounts, and sessions; if it is lost, signing in again recreates them. To restore a dump: `gunzip -c /var/backups/auth/<dump>.sql.gz | docker exec -i shared-auth-db-1 psql -U auth -d auth` into an empty database.
