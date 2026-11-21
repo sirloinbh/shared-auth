@@ -17,8 +17,19 @@ services:
     build: { context: ./backend, secrets: [npm_token] }
     image: shared-auth-backend:${IMAGE_TAG:-local}
     restart: unless-stopped
+    # A small init as PID 1 forwards SIGTERM to node, which closes the server and the pool (src/shutdown.ts),
+    # so `docker compose stop` and a deploy take about a second instead of the 10 s stop timeout.
+    init: true
     depends_on:
       db: { condition: service_healthy }
+    # Same check as the app scaffold (project-standards scaffold/app/compose.yaml): the image has no curl, so
+    # node's fetch asks /api/health (200 when the database answers). `docker compose up -d --wait` waits for it.
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3110/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
     environment:
       PORT: 3110
       DATABASE_URL: postgres://auth:${POSTGRES_PASSWORD}@db:5432/auth
