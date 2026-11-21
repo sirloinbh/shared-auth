@@ -1,0 +1,13 @@
+# Managed file. Edit it in sirloinbh/project-standards templates/deploy/deploy/
+[Unit]
+Description=shared-auth daily server report for healthchecks.io
+After=docker.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=docker
+WorkingDirectory=/opt/shared-auth
+# Copied first: a deploy may check out a new commit while this script runs.
+ExecStart=/bin/bash -c 'cp /opt/shared-auth/deploy/report.sh /tmp/shared-auth-report.sh && exec /bin/bash /tmp/shared-auth-report.sh'
+TimeoutStartSec=5min
