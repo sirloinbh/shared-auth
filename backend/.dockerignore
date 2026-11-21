@@ -1,5 +1,6 @@
 # Managed file. Edit it in sirloinbh/project-standards templates/backend/backend/
 node_modules
 dist
+test
 .git
 .env
