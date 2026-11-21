@@ -1,0 +1,12 @@
+# Managed file. Edit it in sirloinbh/project-standards templates/deploy/deploy/
+[Unit]
+Description=Send the daily shared-auth server report
+
+[Timer]
+# 04:00 Seoul, after the nightly dumps.
+OnCalendar=*-*-* 04:00:00 Asia/Seoul
+Persistent=true
+AccuracySec=5min
+
+[Install]
+WantedBy=timers.target
