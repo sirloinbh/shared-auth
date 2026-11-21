@@ -14,7 +14,7 @@ One sign-in for every daysofme app ([ADR-0015](https://github.com/sirloinbh/proj
 | `/account` | The signed-in owner, the linked providers, buttons to link the other one, and sign-out |
 | `/sign-out?returnTo=<url>` | Ends the session for every app |
 | `/api/auth/*` | Better Auth (`get-session`, `sign-in/social`, `callback/github`, `callback/google`, `link-social`, `sign-out`, ...) |
-| `/api/health` | 200 when the database answers |
+| `/api/health` | 200 when the database answers. The `api` container's Compose healthcheck calls it, so `docker compose ps` shows `healthy` and `docker compose up -d --wait` waits for it |
 
 ## Registry values
 
@@ -33,7 +33,7 @@ npm test            # tsx --test; Better Auth's in-memory adapter, no database n
 npm run typecheck
 ```
 
-A full local run needs Docker and a filled `.env`: `docker compose up --build`, then `http://localhost:8110/sign-in`. GitHub and Google send the browser back only to the registered `https://auth.daysofme.com` callbacks, so a real sign-in works only on the server.
+A full local run needs Docker and a filled `.env`: `docker compose up --build`, then `http://localhost:8110/sign-in`. On SIGTERM (`docker compose stop`, or a deploy replacing the container) the API stops taking requests, lets open ones finish for up to 5 seconds, closes the database pool, and exits; `init: true` in `compose.yaml` forwards the signal to node. GitHub and Google send the browser back only to the registered `https://auth.daysofme.com` callbacks, so a real sign-in works only on the server.
 
 ## Server deploy [User]
 
