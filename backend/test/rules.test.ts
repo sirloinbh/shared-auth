@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { newUserProblem, parseAllowedEmails, safeReturnTo } from '../src/rules.js';
+import { newUserProblem, parseAllowedEmails, REFUSALS, refusalMessage, SIGN_IN_FAILED, safeReturnTo } from '../src/rules.js';
 
 test('ALLOWED_EMAILS is split, trimmed and lowercased', () => {
   assert.deepEqual(parseAllowedEmails(' Owner@Example.com, second@example.net ,'), ['owner@example.com', 'second@example.net']);
@@ -31,4 +31,13 @@ test('returnTo must be HTTPS on the root domain or one of its subdomains', () =>
   no('https://user:pass@workout-memo.daysofme.com/');
   no('javascript:alert(1)');
   no('/relative');
+});
+
+test('each refusal code maps to its fixed message, any other code to the default', () => {
+  assert.equal(refusalMessage(undefined), undefined);
+  assert.equal(refusalMessage(''), undefined);
+  assert.equal(refusalMessage('not_allowed'), REFUSALS.not_allowed);
+  assert.equal(refusalMessage('second_user'), REFUSALS.second_user);
+  for (const code of ['state_not_found', 'access_denied', '__proto__', 'constructor', '<b>x</b>']) assert.equal(refusalMessage(code), SIGN_IN_FAILED, code);
+  for (const reason of Object.keys(REFUSALS)) assert.match(reason, /^[a-z_]+$/);
 });

@@ -12,7 +12,7 @@ One sign-in for every daysofme app ([ADR-0015](https://github.com/sirloinbh/proj
 
 | Path | What it does |
 |---|---|
-| `/sign-in?returnTo=<url>` | "Sign in to continue to <app>" with GitHub, Google, and passkey buttons. `returnTo` must be HTTPS on `daysofme.com` or a subdomain; the app name comes from `backend/src/apps.ts` (a copy of the registry display names), and an unknown subdomain shows its host |
+| `/sign-in?returnTo=<url>` | "Sign in to continue to <app>" with GitHub, Google, and passkey buttons. `returnTo` must be HTTPS on `daysofme.com` or a subdomain; the app name comes from `backend/src/apps.ts` (a copy of the registry display names), and an unknown subdomain shows its host. A refused sign-in comes back here with the same `returnTo` and `error=<reason>`: `not_allowed` (email not in `ALLOWED_EMAILS`) or `second_user` (sign in with the first account, then link this one) show their own message; any other code shows a fixed default, never the query text |
 | `/account` | The signed-in owner, the linked providers, buttons to link the other one, the registered passkeys with "Add a passkey" and "Remove", and sign-out |
 | `/assets/webauthn.js` | The browser half of the passkey flow (`@simplewebauthn/browser`, served from the installed package) |
 | `/sign-out?returnTo=<url>` | Ends the session for every app |

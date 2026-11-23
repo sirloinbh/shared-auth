@@ -6,7 +6,7 @@ import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { returnName } from './apps.js';
 import type { Auth } from './auth.js';
 import { accountPage, type PasskeyRow, signInPage, signOutPage } from './pages.js';
-import { safeReturnTo } from './rules.js';
+import { refusalMessage, safeReturnTo } from './rules.js';
 
 // The browser half of the passkey flow (#54), served from the installed package instead of a CDN.
 const WEBAUTHN_JS = readFileSync(join(dirname(createRequire(import.meta.url).resolve('@simplewebauthn/browser')), '..', 'dist', 'bundle', 'index.umd.min.js'), 'utf8');
@@ -43,7 +43,7 @@ export function createApp(auth: Auth, { baseURL, rootDomain, ping }: AppOptions)
   app.get('/sign-in', async (req, res) => {
     const returnTo = safeReturnTo(query(req.query.returnTo), rootDomain, account);
     if (await session(req)) return res.redirect(303, returnTo);
-    res.type('html').send(signInPage({ returnTo, appName: returnName(returnTo, baseURL), error: query(req.query.error) && 'Sign-in was refused. Use an allowed account.' }));
+    res.type('html').send(signInPage({ returnTo, appName: returnName(returnTo, baseURL), error: refusalMessage(query(req.query.error)) }));
   });
 
   app.get('/account', async (req, res) => {

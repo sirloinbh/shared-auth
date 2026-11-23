@@ -83,7 +83,8 @@ test('an email outside the allow list logs one refusal with the email masked', a
   const { db, events, app } = setup();
   await serve(app, async (base) => {
     const r = await signInWithGitHub(base, { id: 2, email: 'stranger@example.com' });
-    assert.match(r.headers.get('location') ?? '', /error/);
+    // The reason code reaches the sign-in page, which maps it to its message (#44).
+    assert.match(r.headers.get('location') ?? '', /^\/sign-in\?error=not_allowed&/);
   });
   assert.equal(db.user!.length, 0);
   assert.deepEqual(events, [{ outcome: 'refused_not_allowed', provider: 'github', email: 's***@example.com', ip: IP, userAgent: UA }]);
@@ -94,7 +95,7 @@ test('a second allowed account logs a second-user refusal, not a success', async
   await serve(app, async (base) => {
     await signInWithGitHub(base, { id: 1, email: 'owner@example.com' });
     const r = await signInWithGitHub(base, { id: 3, email: 'second@example.net' });
-    assert.match(r.headers.get('location') ?? '', /error/);
+    assert.match(r.headers.get('location') ?? '', /^\/sign-in\?error=second_user&/);
   });
   assert.equal(db.user!.length, 1);
   assert.deepEqual(events.map((e) => e.outcome), ['success', 'refused_second_user']);
@@ -109,7 +110,7 @@ test('a removed email signing in again logs a refusal with its user id', async (
   const removed = createAuth({ ...config, allowedEmails: ['second@example.net'] }, memoryAdapter(db), async () => db.user!.length, (e) => events.push(e));
   await serve(createApp(removed, { baseURL: config.baseURL, rootDomain: config.rootDomain, ping: async () => {} }), async (base) => {
     const r = await signInWithGitHub(base, { id: 1, email: 'owner@example.com' });
-    assert.match(r.headers.get('location') ?? '', /error/);
+    assert.match(r.headers.get('location') ?? '', /^\/sign-in\?error=not_allowed&/);
   });
   const userId = (db.user![0] as { id: string }).id;
   assert.deepEqual(events, [{ outcome: 'refused_not_allowed', provider: 'github', userId, ip: IP, userAgent: UA }]);
