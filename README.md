@@ -11,7 +11,7 @@ One sign-in for every daysofme app ([ADR-0015](https://github.com/sirloinbh/proj
 
 | Path | What it does |
 |---|---|
-| `/sign-in?returnTo=<url>` | GitHub and Google buttons. `returnTo` must be HTTPS on `daysofme.com` or a subdomain |
+| `/sign-in?returnTo=<url>` | "Sign in to continue to <app>" with GitHub and Google buttons. `returnTo` must be HTTPS on `daysofme.com` or a subdomain; the app name comes from `backend/src/apps.ts` (a copy of the registry display names), and an unknown subdomain shows its host |
 | `/account` | The signed-in owner, the linked providers, buttons to link the other one, and sign-out |
 | `/sign-out?returnTo=<url>` | Ends the session for every app |
 | `/api/auth/*` | Better Auth (`get-session`, `sign-in/social`, `callback/github`, `callback/google`, `link-social`, `sign-out`, ...) |
@@ -19,7 +19,7 @@ One sign-in for every daysofme app ([ADR-0015](https://github.com/sirloinbh/proj
 
 ## Page look
 
-The pages use the shared design tokens of the daysofme apps, `@sirloinbh/design-tokens` **1.1.0** (sirloinbh/project-standards `packages/design-tokens/tokens.css`, ADR-0008): the same neutral colors, type sizes, corner radius, and spacing. This service has no frontend build, so `backend/src/styles.ts` holds a copy of the token values it uses, with `TOKENS_VERSION` naming the version. When the tokens change, copy the new values from `tokens.css` and raise `TOKENS_VERSION`. Dark mode follows the system setting (`prefers-color-scheme`). The font stack starts with Pretendard, but the font files are not served here, so the pages show Pretendard only where it is installed and the system font otherwise.
+The pages use the shared design tokens of the daysofme apps, `@sirloinbh/design-tokens` **1.1.0** (sirloinbh/project-standards `packages/design-tokens/tokens.css`, ADR-0008): the same neutral colors, type sizes, corner radius, and spacing. This service has no frontend build, so `backend/src/styles.ts` holds a copy of the token values it uses, with `TOKENS_VERSION` naming the version. When the tokens change, copy the new values from `tokens.css` and raise `TOKENS_VERSION`. Every page is one centered card under the service name; the provider buttons carry the unaltered GitHub mark and Google "G" as inline SVG. Dark mode follows the system setting (`prefers-color-scheme`). The font stack starts with Pretendard, but the font files are not served here, so the pages show Pretendard only where it is installed and the system font otherwise.
 
 ## Sessions
 
