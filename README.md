@@ -75,6 +75,15 @@ Every sign-in outcome writes one JSON line to the `api` logs (#33, `backend/src/
 
 No token, cookie, or full email is logged. To list them on the server: `docker compose logs api | grep '"event":"sign_in"'`.
 
+## New sign-in alert
+
+A successful sign-in from an IP or a device the owner has not signed in from before sends one email through Amazon SES (#36, `backend/src/new-device.ts`, `backend/src/ses.ts`). The device is the user agent without its version numbers, so a browser update is not a new device. The email names what is new, the provider, the IP, the user agent, and the time; no email address, token, or cookie.
+
+- Every successful sign-in is remembered in the `sign_in_seen` table (user id, `ip` or `device`, a SHA-256 hash of the value, first seen), also while the alert is off. Turning the alert on later therefore reports only places not seen since the first deploy with #36.
+- The alert is off unless all five keys are set: `SES_REGION`, `SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY`, `SIGNIN_ALERT_EMAIL_FROM`, `SIGNIN_ALERT_EMAIL_TO` (`.env.example`; the last four come from SSM). The start log says `new sign-in alert: email on` or `off`.
+- The request is signed with AWS Signature Version 4 from `node:crypto` and sent with `fetch`; there is no AWS SDK package.
+- A failed send never blocks the sign-in. It writes one `"level":"error"` line (`"event":"sign_in_alert_failed"`, the HTTP status only), which the daily report counts.
+
 ## Registry values
 
 Slot 10 in `sirloinbh/project-standards` `registry/projects.json` (`sharedServices`): web `8110` (published on `127.0.0.1`, forwarded by the server proxy), API `3110` inside the container, DB `15410` (local only).
