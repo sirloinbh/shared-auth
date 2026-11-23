@@ -18,15 +18,35 @@ export function isAllowedEmail(email: string | null | undefined, allowed: string
  * that user, and the other provider is linked from /account instead of creating a second user.
  */
 export function newUserProblem(email: string | null | undefined, allowed: string[], existingUsers: number): NewUserProblem | null {
-  if (!isAllowedEmail(email, allowed)) return { reason: 'not_allowed', message: NOT_ALLOWED };
-  if (existingUsers > 0) return { reason: 'second_user', message: 'Sign in with the account you used first, then link this one on the account page.' };
+  if (!isAllowedEmail(email, allowed)) return { reason: 'not_allowed', message: REFUSALS.not_allowed };
+  if (existingUsers > 0) return { reason: 'second_user', message: REFUSALS.second_user };
   return null;
 }
 
-export const NOT_ALLOWED = 'This account is not allowed to sign in.';
+/**
+ * Why a sign-in was refused, and the message the sign-in page shows for it. The reason is the error
+ * code Better Auth puts in the error callback URL (/sign-in?error=<reason>), so it must stay URL-safe.
+ */
+export const REFUSALS = {
+  not_allowed: 'This account is not allowed to sign in.',
+  second_user: 'Sign in with the account you used first, then link this one on the account page.',
+} as const;
+
+export type RefusalReason = keyof typeof REFUSALS;
+
+export const NOT_ALLOWED = REFUSALS.not_allowed;
+
+/** Shown for any other error code: Better Auth's own (state_not_found, access_denied, ...) or a made-up one. */
+export const SIGN_IN_FAILED = 'Sign-in did not finish. Try again, and use an allowed account.';
+
+/** The fixed message for an error code from the callback URL; the code itself is never shown. */
+export function refusalMessage(code: string | undefined): string | undefined {
+  if (!code) return undefined;
+  return Object.hasOwn(REFUSALS, code) ? REFUSALS[code as RefusalReason] : SIGN_IN_FAILED;
+}
 
 /** Why a new user was refused: not in ALLOWED_EMAILS, or allowed but not the first (the one owner). */
-export type NewUserProblem = { reason: 'not_allowed' | 'second_user'; message: string };
+export type NewUserProblem = { reason: RefusalReason; message: string };
 
 /** Returns returnTo when it is this service or an app under the root domain over HTTPS, otherwise the fallback. */
 export function safeReturnTo(returnTo: string | undefined, rootDomain: string, fallback: string): string {

@@ -11,7 +11,7 @@ One sign-in for every daysofme app ([ADR-0015](https://github.com/sirloinbh/proj
 
 | Path | What it does |
 |---|---|
-| `/sign-in?returnTo=<url>` | "Sign in to continue to <app>" with GitHub and Google buttons. `returnTo` must be HTTPS on `daysofme.com` or a subdomain; the app name comes from `backend/src/apps.ts` (a copy of the registry display names), and an unknown subdomain shows its host |
+| `/sign-in?returnTo=<url>` | "Sign in to continue to <app>" with GitHub and Google buttons. `returnTo` must be HTTPS on `daysofme.com` or a subdomain; the app name comes from `backend/src/apps.ts` (a copy of the registry display names), and an unknown subdomain shows its host. A refused sign-in comes back here with the same `returnTo` and `error=<reason>`: `not_allowed` (email not in `ALLOWED_EMAILS`) or `second_user` (sign in with the first account, then link this one) show their own message; any other code shows a fixed default, never the query text |
 | `/account` | The signed-in owner, the linked providers, buttons to link the other one, and sign-out |
 | `/sign-out?returnTo=<url>` | Ends the session for every app |
 | `/api/auth/*` | Better Auth (`get-session`, `sign-in/social`, `callback/github`, `callback/google`, `link-social`, `sign-out`, ...) |
