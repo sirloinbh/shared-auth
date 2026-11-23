@@ -46,6 +46,7 @@ test('the sign-in page offers GitHub and Google and never returns to a foreign s
     assert.match(page, /https:\/\/auth\.daysofme\.com\/account|http:\/\/localhost:3110\/account/);
     const app = await (await fetch(`${base}/sign-in?returnTo=${encodeURIComponent('https://workout-memo.daysofme.com/logs')}`)).text();
     assert.match(app, /workout-memo\.daysofme\.com\/logs/);
+    assert.match(app, /to continue to <strong>FORM · My Workout Log<\/strong>/);
   });
 });
 
