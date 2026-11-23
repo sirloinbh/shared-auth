@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import test from 'node:test';
 import { memoryAdapter } from 'better-auth/adapters/memory';
 import { createApp } from '../src/app.js';
-import { type AuthConfig, createAuth, revokeRemovedUsers, SESSION } from '../src/auth.js';
+import { type AuthConfig, createAuth, RATE_LIMIT, revokeRemovedUsers, SESSION } from '../src/auth.js';
 
 const config: AuthConfig = {
   baseURL: 'http://localhost:3110',
@@ -143,4 +143,41 @@ test('sessions last 30 days, move forward daily, and are never served from a coo
   const lifetime = (new Date(session.expiresAt).getTime() - before) / 1000;
   assert.ok(Math.abs(lifetime - SESSION.expiresIn) < 60, `lifetime ${lifetime}s`);
   assert.equal(ctx.authCookies.sessionToken.attributes.maxAge, SESSION.expiresIn);
+});
+
+// Better Auth keeps the rate limit counts in one in-memory store per process, so each test below uses its
+// own addresses (203.0.113.0/24 is reserved for documentation) to stay apart from the other tests.
+const startSignIn = (base: string, headers: Record<string, string>) =>
+  fetch(`${base}/api/auth/sign-in/social`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: config.baseURL, ...headers },
+    body: JSON.stringify({ provider: 'github', callbackURL: 'https://workout-memo.daysofme.com/' }),
+  }).then((r) => r.status);
+
+test('sign-in starts are limited per client IP from X-Real-IP, and going over answers 429', async () => {
+  const max = RATE_LIMIT.rules['/sign-in/*'].max;
+  await serve(setup().app, async (base) => {
+    for (let i = 0; i < max; i++) assert.equal(await startSignIn(base, { 'x-real-ip': '203.0.113.10' }), 200, `request ${i + 1}`);
+    assert.equal(await startSignIn(base, { 'x-real-ip': '203.0.113.10' }), 429);
+    // Another client behind the same proxy has its own count.
+    assert.equal(await startSignIn(base, { 'x-real-ip': '203.0.113.11' }), 200);
+  });
+});
+
+test('a forged X-Forwarded-For does not move a client to a fresh count', async () => {
+  const max = RATE_LIMIT.rules['/sign-in/*'].max;
+  await serve(setup().app, async (base) => {
+    const as = (i: number) => ({ 'x-real-ip': '203.0.113.20', 'x-forwarded-for': `198.51.100.${i}, 203.0.113.20` });
+    for (let i = 0; i < max; i++) assert.equal(await startSignIn(base, as(i)), 200, `request ${i + 1}`);
+    assert.equal(await startSignIn(base, as(99)), 429);
+  });
+});
+
+test('session checks from app containers (no X-Real-IP) are not limited, browser ones are', async () => {
+  await serve(setup().app, async (base) => {
+    const check = (headers: Record<string, string>) => fetch(`${base}/api/auth/get-session`, { headers }).then((r) => r.status);
+    for (let i = 0; i <= RATE_LIMIT.max; i++) assert.equal(await check({}), 200, `internal request ${i + 1}`);
+    for (let i = 0; i < RATE_LIMIT.max; i++) assert.equal(await check({ 'x-real-ip': '203.0.113.30' }), 200, `browser request ${i + 1}`);
+    assert.equal(await check({ 'x-real-ip': '203.0.113.30' }), 429);
+  });
 });
