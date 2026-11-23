@@ -41,6 +41,12 @@ services:
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:?set GITHUB_CLIENT_SECRET}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?set GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?set GOOGLE_CLIENT_SECRET}
+      # The new sign-in email (#36). Optional: the alert stays off unless all five are set.
+      SES_REGION: ${SES_REGION:-}
+      SES_ACCESS_KEY_ID: ${SES_ACCESS_KEY_ID:-}
+      SES_SECRET_ACCESS_KEY: ${SES_SECRET_ACCESS_KEY:-}
+      SIGNIN_ALERT_EMAIL_FROM: ${SIGNIN_ALERT_EMAIL_FROM:-}
+      SIGNIN_ALERT_EMAIL_TO: ${SIGNIN_ALERT_EMAIL_TO:-}
     # The server proxy forwards https://auth.<root domain> here. Locally: http://localhost:8110.
     ports: ['${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8110}:3110']
     networks:
