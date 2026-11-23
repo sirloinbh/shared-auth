@@ -3,17 +3,18 @@ import { createApp } from './app.js';
 import { createAuth, revokeRemovedUsers } from './auth.js';
 import { loadConfig } from './config.js';
 import { alertErrorLine, newDeviceWatcher, pgSeenStore } from './new-device.js';
-import { sesConfigFrom, sesSender } from './ses.js';
+import { snsConfigFrom, snsSender } from './sns.js';
 import { closeGracefully } from './shutdown.js';
 import { consoleSignInLog } from './signin-log.js';
 
 const config = loadConfig();
 const pool = new pg.Pool({ connectionString: config.databaseUrl, max: 5 });
 const countUsers = async () => Number((await pool.query<{ n: string }>('select count(*) as n from "user"')).rows[0]?.n ?? 0);
-// The new device alert (#36): sign-ins are remembered always; the email goes out once every SES key is set.
-const ses = sesConfigFrom(process.env);
-const send = ses ? sesSender(ses, `New sign-in to ${new URL(config.baseURL).host}`) : null;
-console.log(`new sign-in alert: ${send ? 'email on' : 'off (SES keys not set)'}`);
+// The new device alert (#36, #61): sign-ins are remembered always; the alert is published to the
+// shared SNS topic once every AWS_ALERT_* key is set.
+const sns = snsConfigFrom(process.env);
+const send = sns ? snsSender(sns, `New sign-in to ${new URL(config.baseURL).host}`) : null;
+console.log(`new sign-in alert: ${send ? 'sns on' : 'off (AWS_ALERT_* keys not set)'}`);
 const watchDevices = newDeviceWatcher({ store: pgSeenStore(pool), send, onError: (err) => console.error(alertErrorLine(err)) });
 const auth = createAuth(config, pool, countUsers, (event) => {
   consoleSignInLog(event);
