@@ -16,7 +16,7 @@ const config: AuthConfig = {
 };
 
 function setup({ ping = async () => {}, production = false } = {}) {
-  const db: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [] };
+  const db: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [], passkey: [] };
   const auth = createAuth({ ...config, production }, memoryAdapter(db), async () => db.user!.length, () => {});
   return { auth, db, app: createApp(auth, { baseURL: config.baseURL, rootDomain: config.rootDomain, ping }) };
 }
@@ -217,7 +217,7 @@ test('every response carries the strict Content-Security-Policy, and the assets 
     "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'",
   );
   await serve(setup().app, async (base) => {
-    for (const path of ['/sign-in', '/sign-out', '/account', '/assets/pages.css', '/assets/pages.js', '/api/health', '/api/auth/get-session']) {
+    for (const path of ['/sign-in', '/sign-out', '/account', '/assets/pages.css', '/assets/pages.js', '/assets/passkey.js', '/assets/webauthn.js', '/api/health', '/api/auth/get-session']) {
       const r = await fetch(`${base}${path}`, { redirect: 'manual' });
       assert.equal(r.headers.get('content-security-policy'), CONTENT_SECURITY_POLICY, path);
     }
@@ -228,5 +228,8 @@ test('every response carries the strict Content-Security-Policy, and the assets 
     const js = await fetch(`${base}/assets/pages.js`);
     assert.match(js.headers.get('content-type') ?? '', /^(text|application)\/javascript/);
     assert.match(await js.text(), /button\[data-endpoint\]/);
+    const passkey = await fetch(`${base}/assets/passkey.js`);
+    assert.match(passkey.headers.get('content-type') ?? '', /^(text|application)\/javascript/);
+    assert.match(await passkey.text(), /SimpleWebAuthnBrowser\.startRegistration/);
   });
 });

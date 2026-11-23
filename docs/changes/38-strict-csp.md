@@ -13,6 +13,11 @@ Every response sent only `frame-ancestors 'none'`. The pages are simple, so a st
 - Tests: `app.test.ts` checks the exact policy on the pages, the assets, and the API, and the asset content types; `pages.test.ts` checks every page links both files and has no inline `<style>`, script body, `style=`, or `on*=` attribute (the token checks moved to the stylesheet itself).
 - `README.md`: the asset routes and a "Security headers" section.
 
+## Merge with the passkey change (#54)
+
+- The passkey work added a second inline script and `@simplewebauthn/browser` at `/assets/webauthn.js`. The merge turns the passkey script into `/assets/passkey.js` (`PASSKEY_SCRIPT`), gives `layout()` a list of script URLs (the passkey pages load `pages.js`, `webauthn.js`, `passkey.js`), and serves `webauthn.js` with the same `no-cache` as the other assets.
+- After the merge: `npm test` 59 passed, 0 failed; `/sign-in` with the passkey button loaded in headless Chrome under the policy with no violation.
+
 ## Choices
 
 - Static files over a per-response nonce or hashes: the stylesheet and script are the same on every page, so files need no per-request state and no hash to keep in step when they change. The proxy forwards every path to the API, so no proxy change is needed.

@@ -3,6 +3,7 @@
 One sign-in for every daysofme app ([ADR-0015](https://github.com/sirloinbh/project-standards/blob/main/docs/adr/0015-shared-sign-in.md)). It runs at `https://auth.daysofme.com` on the shared server, next to the apps.
 
 - Sign in with GitHub or Google. Only the emails in `ALLOWED_EMAILS` may sign in, and they form one owner: the first sign-in creates the owner, and the other provider is linked on `/account`.
+- A passkey registered on `/account` is the emergency way in when GitHub and Google are both unavailable (#54). It is tied to `auth.daysofme.com` (the WebAuthn relying party), and a passkey sign-in still has to pass the `ALLOWED_EMAILS` check.
 - `ALLOWED_EMAILS` is checked when the owner is created and again whenever a session is created, so a removed email cannot sign in again. Changing `ALLOWED_EMAILS` needs a restart (`bash deploy/deploy.sh`); on start the API deletes the open sessions of every user whose email is no longer listed, and logs how many it signed out.
 - The session cookie (`__Secure-sirloinbh.session_token`) is set on `daysofme.com`, so every app subdomain receives it. Apps check it with [`@sirloinbh/auth-client`](https://github.com/sirloinbh/project-standards/tree/main/packages/auth-client) over the private Docker network `shared-auth` (`http://shared-auth-api:3110`).
 - Built on [Better Auth](https://better-auth.com) 1.7.15 (pinned), Express 5, and PostgreSQL 17. Better Auth creates its own tables on start (`dist/migrate.js`).
@@ -11,12 +12,13 @@ One sign-in for every daysofme app ([ADR-0015](https://github.com/sirloinbh/proj
 
 | Path | What it does |
 |---|---|
-| `/sign-in?returnTo=<url>` | "Sign in to continue to <app>" with GitHub and Google buttons. `returnTo` must be HTTPS on `daysofme.com` or a subdomain; the app name comes from `backend/src/apps.ts` (a copy of the registry display names), and an unknown subdomain shows its host. A refused sign-in comes back here with the same `returnTo` and `error=<reason>`: `not_allowed` (email not in `ALLOWED_EMAILS`) or `second_user` (sign in with the first account, then link this one) show their own message; any other code shows a fixed default, never the query text |
-| `/account` | The signed-in owner, the linked providers, buttons to link the other one, the active sessions, and sign-out. With both providers linked, each has an "Unlink" button (Better Auth's `unlink-account`); the last provider can never be unlinked, and Better Auth refuses it too. Unlinking needs a sign-in from the last day (Better Auth's `freshAge`), so an older session sees "sign in again" instead of the buttons. A failed link comes back as `/account?error=<code>` and shows a fixed message. Each session shows its device (browser and system from the user agent), IP, sign-in time, and last use (Seoul time); the current one is marked "This device", and every other one has a "Sign out" button. With two or more other sessions, "Sign out other devices" ends them all. A signed-out device stays signed in to an app for up to 30 seconds, the `@sirloinbh/auth-client` cache |
+| `/sign-in?returnTo=<url>` | "Sign in to continue to <app>" with GitHub, Google, and passkey buttons. `returnTo` must be HTTPS on `daysofme.com` or a subdomain; the app name comes from `backend/src/apps.ts` (a copy of the registry display names), and an unknown subdomain shows its host. A refused sign-in comes back here with the same `returnTo` and `error=<reason>`: `not_allowed` (email not in `ALLOWED_EMAILS`) or `second_user` (sign in with the first account, then link this one) show their own message; any other code shows a fixed default, never the query text |
+| `/account` | The signed-in owner, the linked providers, buttons to link the other one, the active sessions, and sign-out. With both providers linked, each has an "Unlink" button (Better Auth's `unlink-account`); the last provider can never be unlinked, and Better Auth refuses it too. Unlinking needs a sign-in from the last day (Better Auth's `freshAge`), so an older session sees "sign in again" instead of the buttons. The registered passkeys are listed with "Add a passkey" and "Remove". A failed link comes back as `/account?error=<code>` and shows a fixed message. Each session shows its device (browser and system from the user agent), IP, sign-in time, and last use (Seoul time); the current one is marked "This device", and every other one has a "Sign out" button. With two or more other sessions, "Sign out other devices" ends them all. A signed-out device stays signed in to an app for up to 30 seconds, the `@sirloinbh/auth-client` cache |
 | `POST /account/sessions/revoke` | Used by the session "Sign out" buttons: `{ "id": "<session id>" }`, JSON only, from this service's origin. Ends one other session of the signed-in owner, so session tokens never reach the page |
+| `/assets/webauthn.js` | The browser half of the passkey flow (`@simplewebauthn/browser`, served from the installed package) |
 | `/sign-out?returnTo=<url>` | Ends the session for every app |
 | `/api/auth/*` | Better Auth (`get-session`, `sign-in/social`, `callback/github`, `callback/google`, `link-social`, `sign-out`, ...) |
-| `/assets/pages.css`, `/assets/pages.js` | The pages' stylesheet and button script, served as files so the pages have no inline code (`Cache-Control: no-cache`) |
+| `/assets/pages.css`, `/assets/pages.js`, `/assets/passkey.js` | The pages' stylesheet, button script, and passkey button script, served as files so the pages have no inline code (`Cache-Control: no-cache`, as `/assets/webauthn.js`) |
 | `/api/health` | 200 when the database answers. The `api` container's Compose healthcheck calls it, so `docker compose ps` shows `healthy` and `docker compose up -d --wait` waits for it |
 
 ## Page look
@@ -31,7 +33,7 @@ Every response carries `X-Content-Type-Options: nosniff`, `Referrer-Policy: same
 default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'
 ```
 
-Only this service's own files and endpoints load. A page must not add inline `<script>`, `<style>`, `style=` or `on*=` attributes; put styles in `backend/src/styles.ts` and script in `SCRIPT` in `backend/src/pages.ts`. After a button's request, the browser navigates to GitHub, Google, or an app, which the policy does not limit.
+Only this service's own files and endpoints load. A page must not add inline `<script>`, `<style>`, `style=` or `on*=` attributes; put styles in `backend/src/styles.ts` and script in `SCRIPT` or `PASSKEY_SCRIPT` in `backend/src/pages.ts`, served under `/assets/`. After a button's request, the browser navigates to GitHub, Google, or an app, which the policy does not limit.
 
 ## Sessions
 
@@ -43,13 +45,22 @@ Set in `SESSION` in `backend/src/auth.ts` (#39):
 | `updateAge` | 1 day | A session used after a day gets its database expiry moved forward |
 | `cookieCache` | off | The cache cookie would save database reads only for its `maxAge` after sign-in, and a signed-out or removed session would stay usable that long. `@sirloinbh/auth-client` already caches each successful check for 30 seconds, so a sign-out or a removed email reaches every app within 30 seconds |
 
+## Passkeys
+
+Built on `@better-auth/passkey` 1.7.15 (pinned; it brings `@simplewebauthn/server` and `@simplewebauthn/browser`). Better Auth's migration creates the `passkey` table on start.
+
+- Register a passkey while signed in: `/account`, "Add a passkey". Registering needs a session, so a stranger cannot add one. Add at least two (for example a phone and a laptop, or a hardware key), so losing one device is not the end.
+- Sign in: `/sign-in`, "Sign in with a passkey". The session is created through the same hooks as GitHub and Google, so an email removed from `ALLOWED_EMAILS` is refused, and the sign-in line is logged with provider `passkey`.
+- The relying party ID is the host of `BETTER_AUTH_URL` (`auth.daysofme.com`; `localhost` locally), so passkeys work only on these pages, which is where every sign-in happens.
+- A real registration needs a browser and HTTPS (or `localhost`); the tests cover the options, the guards, the account page, and the limits, not a real authenticator.
+
 ## Request limits
 
 Better Auth's rate limit, set in `RATE_LIMIT` in `backend/src/auth.ts` (#37). It counts requests to `/api/auth/*` per client IP and path, in memory (one API container; a restart clears the counts). Over the limit, the answer is `429` with `X-Retry-After` in seconds.
 
 | Path under `/api/auth` | Limit |
 |---|---|
-| `/sign-in/*`, `/link-social`, `/callback/*` | 10 per minute |
+| `/sign-in/*`, `/link-social`, `/callback/*`, `/passkey/*` | 10 per minute |
 | `/get-session` from an app container (no `X-Real-IP`) | Not limited; `@sirloinbh/auth-client` caches each check for 30 seconds |
 | Everything else, including `/get-session` from a browser | 100 per minute |
 

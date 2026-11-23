@@ -26,7 +26,7 @@ type Session = { id: string; token: string; userAgent: string; createdAt: Date }
 
 /** Signs the owner in from each device and runs `run` with each device's session cookie. */
 async function withDevices(devices: (typeof LAPTOP)[], run: (base: string, cookies: string[], sessions: Session[], auth: Auth) => Promise<void>) {
-  const db: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [] };
+  const db: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [], passkey: [] };
   const auth = createAuth(config, memoryAdapter(db), async () => db.user!.length, () => {});
   const server = createApp(auth, { baseURL: config.baseURL, rootDomain: config.rootDomain, ping: async () => {} }).listen(0);
   await new Promise((r) => server.once('listening', r));

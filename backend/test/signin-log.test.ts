@@ -22,7 +22,7 @@ const UA = 'Mozilla/5.0 (test)';
 const signInWithGitHub = (base: string, account: { id: number; email: string }) => signIn(base, account, { ip: IP, userAgent: UA });
 
 function setup(allowedEmails = config.allowedEmails) {
-  const db: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [] };
+  const db: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [], passkey: [] };
   const events: SignInEvent[] = [];
   const auth = createAuth({ ...config, allowedEmails }, memoryAdapter(db), async () => db.user!.length, (e) => events.push(e));
   return { db, events, app: createApp(auth, { baseURL: config.baseURL, rootDomain: config.rootDomain, ping: async () => {} }) };
