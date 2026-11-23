@@ -9,7 +9,7 @@ const app = 'https://workout-memo.daysofme.com/logs';
 
 const pages = {
   'sign-in': signInPage({ returnTo: app, appName: 'FORM · My Workout Log' }),
-  account: accountPage({ name: 'Owner', email: 'owner@example.com' }, ['github']),
+  account: accountPage({ name: 'Owner', email: 'owner@example.com' }, { linked: [{ id: 'a1', providerId: 'github' }] }),
   'sign-out': signOutPage({ returnTo: app, appName: 'FORM · My Workout Log' }),
 };
 

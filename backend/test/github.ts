@@ -21,15 +21,16 @@ export function fakeGitHub(account: { id: number; email: string }) {
 export async function signInWithGitHub(base: string, account: { id: number; email: string }, client: { ip: string; userAgent: string }) {
   const restore = fakeGitHub(account);
   try {
+    // Like a browser behind nginx, both requests carry the client's address (rate limits count per IP).
+    const via = { 'user-agent': client.userAgent, 'x-forwarded-for': client.ip, 'x-real-ip': client.ip };
     const start = await fetch(`${base}/api/auth/sign-in/social`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', origin: BASE_URL },
+      headers: { 'content-type': 'application/json', origin: BASE_URL, ...via },
       body: JSON.stringify({ provider: 'github', callbackURL: '/account', errorCallbackURL: '/sign-in' }),
     });
     const state = new URL(((await start.json()) as { url: string }).url).searchParams.get('state')!;
     const cookie = start.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
-    const headers = { cookie, 'user-agent': client.userAgent, 'x-forwarded-for': client.ip, 'x-real-ip': client.ip };
-    return await fetch(`${base}/api/auth/callback/github?code=fake-code&state=${state}`, { headers, redirect: 'manual' });
+    return await fetch(`${base}/api/auth/callback/github?code=fake-code&state=${state}`, { headers: { cookie, ...via }, redirect: 'manual' });
   } finally {
     restore();
   }
