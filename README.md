@@ -27,6 +27,18 @@ Set in `SESSION` in `backend/src/auth.ts` (#39):
 | `updateAge` | 1 day | A session used after a day gets its database expiry moved forward |
 | `cookieCache` | off | The cache cookie would save database reads only for its `maxAge` after sign-in, and a signed-out or removed session would stay usable that long. `@sirloinbh/auth-client` already caches each successful check for 30 seconds, so a sign-out or a removed email reaches every app within 30 seconds |
 
+## Request limits
+
+Better Auth's rate limit, set in `RATE_LIMIT` in `backend/src/auth.ts` (#37). It counts requests to `/api/auth/*` per client IP and path, in memory (one API container; a restart clears the counts). Over the limit, the answer is `429` with `X-Retry-After` in seconds.
+
+| Path under `/api/auth` | Limit |
+|---|---|
+| `/sign-in/*`, `/link-social`, `/callback/*` | 10 per minute |
+| `/get-session` from an app container (no `X-Real-IP`) | Not limited; `@sirloinbh/auth-client` caches each check for 30 seconds |
+| Everything else, including `/get-session` from a browser | 100 per minute |
+
+The client IP comes from `X-Real-IP`, which the server's nginx sets to the address it accepted the connection from (project-standards `scripts/lib/proxy.mjs`), replacing any value the client sent. `X-Forwarded-For` is not used, because nginx appends to what the client sent and its first entry can be forged. If the proxy config stops sending `X-Real-IP`, browser requests lose their per-IP count, so keep the two in step.
+
 ## Registry values
 
 Slot 10 in `sirloinbh/project-standards` `registry/projects.json` (`sharedServices`): web `8110` (published on `127.0.0.1`, forwarded by the server proxy), API `3110` inside the container, DB `15410` (local only).

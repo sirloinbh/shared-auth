@@ -31,6 +31,37 @@ const DAY = 24 * 60 * 60;
 export const SESSION = { expiresIn: 30 * DAY, updateAge: DAY, cookieCache: { enabled: false } } as const;
 
 /**
+ * The header with the client IP. The server's nginx sets X-Real-IP to the address it accepted the
+ * connection from, replacing any value the client sent. X-Forwarded-For is not used: nginx appends to
+ * what the client sent, so its first entry can be forged. Only nginx and the app containers on the
+ * shared-auth Docker network can reach the API (the port is published on 127.0.0.1).
+ */
+export const CLIENT_IP_HEADER = 'x-real-ip';
+
+/**
+ * Request limits per client IP and path (#37). Better Auth counts in memory, which fits the one API
+ * container; a restart clears the counts. Paths are relative to /api/auth.
+ */
+export const RATE_LIMIT = {
+  window: 60,
+  max: 100,
+  rules: {
+    // Starting a GitHub or Google sign-in, linking the other one, and the provider callbacks.
+    '/sign-in/*': { window: 60, max: 10 },
+    '/link-social': { window: 60, max: 10 },
+    '/callback/*': { window: 60, max: 10 },
+  },
+} as const;
+
+/**
+ * App APIs check sessions server-to-server over the Docker network (@sirloinbh/auth-client), without
+ * X-Real-IP. Those calls would all share one count, so one busy app could lock every app out; they are
+ * not limited. A request through nginx always has X-Real-IP, so a browser cannot skip the limit.
+ */
+const internalSessionCheck = (request: Request, rule: { window: number; max: number }) =>
+  request.headers.get(CLIENT_IP_HEADER) ? rule : (false as const);
+
+/**
  * A refusal from a hook. The OAuth callback redirects to the errorCallbackURL (/sign-in?error=...) only
  * when the error has a code; without one the browser would get a bare 403.
  */
@@ -83,7 +114,15 @@ export function authOptions(
     },
     // Callbacks may return to this service or any app under the root domain.
     trustedOrigins: [config.baseURL, `https://*.${config.rootDomain}`],
+    rateLimit: {
+      enabled: true,
+      storage: 'memory',
+      window: RATE_LIMIT.window,
+      max: RATE_LIMIT.max,
+      customRules: { ...RATE_LIMIT.rules, '/get-session': internalSessionCheck },
+    },
     advanced: {
+      ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
       // @sirloinbh/auth-client reads (__Secure-)sirloinbh.session_token.
       cookiePrefix: 'sirloinbh',
       useSecureCookies: config.production,
