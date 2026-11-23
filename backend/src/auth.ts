@@ -1,8 +1,9 @@
 // The Better Auth instance: GitHub and Google, one owner, one session cookie for every app subdomain
 // (ADR-0015 in sirloinbh/project-standards).
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
-import { APIError } from 'better-auth/api';
-import { isAllowedEmail, newUserProblem } from './rules.js';
+import { APIError, getIP } from 'better-auth/api';
+import { isAllowedEmail, NOT_ALLOWED, newUserProblem } from './rules.js';
+import { consoleSignInLog, maskEmail, type SignInLog } from './signin-log.js';
 
 export type AuthConfig = {
   /** https://auth.<root domain> */
@@ -70,13 +71,25 @@ const refused = (message: string) => new APIError('FORBIDDEN', { code: 'SIGN_IN_
 /** Looks up a user's email by user id; null when the user does not exist. */
 export type FindUserEmail = (userId: string) => Promise<string | null>;
 
+/** The endpoint context Better Auth passes to a database hook; null outside a request. */
+type HookContext = { params?: Record<string, string | undefined>; headers?: Headers; request?: Request } | null | undefined;
+
+/** The OAuth callback is /callback/:id, so the provider is the id parameter. */
+const providerOf = (ctx: HookContext) => ctx?.params?.id ?? 'unknown';
+
 export function authOptions(
   config: AuthConfig,
   database: BetterAuthOptions['database'],
   countUsers: () => Promise<number>,
   findUserEmail: FindUserEmail,
+  signInLog: SignInLog = consoleSignInLog,
 ): BetterAuthOptions {
-  return {
+  // Read the client address the way Better Auth does for the session row, so every line agrees.
+  const client = (ctx: HookContext) => {
+    const headers = ctx?.headers ?? ctx?.request?.headers;
+    return { ip: headers ? getIP(headers, options) : null, userAgent: headers?.get('user-agent') ?? null };
+  };
+  const options: BetterAuthOptions = {
     appName: 'daysofme sign-in',
     baseURL: config.baseURL,
     secret: config.secret,
@@ -95,19 +108,27 @@ export function authOptions(
     databaseHooks: {
       user: {
         create: {
-          before: async (user) => {
+          before: async (user, ctx) => {
             const problem = newUserProblem(user.email, config.allowedEmails, await countUsers());
-            if (problem) throw refused(problem);
+            if (!problem) return;
+            const outcome = problem.reason === 'second_user' ? 'refused_second_user' : 'refused_not_allowed';
+            signInLog({ outcome, provider: providerOf(ctx), email: maskEmail(user.email), ...client(ctx) });
+            throw refused(problem.message);
           },
         },
       },
       session: {
         create: {
           // ALLOWED_EMAILS is checked again at every sign-in, so removing an email locks that user out.
-          before: async (session) => {
+          before: async (session, ctx) => {
             if (!isAllowedEmail(await findUserEmail(session.userId), config.allowedEmails)) {
-              throw refused('This account is not allowed to sign in.');
+              signInLog({ outcome: 'refused_not_allowed', provider: providerOf(ctx), userId: session.userId, ...client(ctx) });
+              throw refused(NOT_ALLOWED);
             }
+          },
+          // Only a sign-in creates a session here (linking a provider and refreshing do not).
+          after: async (session, ctx) => {
+            signInLog({ outcome: 'success', provider: providerOf(ctx), userId: session.userId, ip: session.ipAddress ?? null, userAgent: session.userAgent ?? null });
           },
         },
       },
@@ -130,11 +151,17 @@ export function authOptions(
     },
     telemetry: { enabled: false },
   };
+  return options;
 }
 
-export function createAuth(config: AuthConfig, database: BetterAuthOptions['database'], countUsers: () => Promise<number>) {
+export function createAuth(
+  config: AuthConfig,
+  database: BetterAuthOptions['database'],
+  countUsers: () => Promise<number>,
+  signInLog: SignInLog = consoleSignInLog,
+) {
   const findUserEmail: FindUserEmail = async (userId) => (await (await auth.$context).internalAdapter.findUserById(userId))?.email ?? null;
-  const auth = betterAuth(authOptions(config, database, countUsers, findUserEmail));
+  const auth = betterAuth(authOptions(config, database, countUsers, findUserEmail, signInLog));
   return auth;
 }
 

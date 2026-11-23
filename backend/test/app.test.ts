@@ -17,7 +17,7 @@ const config: AuthConfig = {
 
 function setup({ ping = async () => {}, production = false } = {}) {
   const db: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [] };
-  const auth = createAuth({ ...config, production }, memoryAdapter(db), async () => db.user!.length);
+  const auth = createAuth({ ...config, production }, memoryAdapter(db), async () => db.user!.length, () => {});
   return { auth, db, app: createApp(auth, { baseURL: config.baseURL, rootDomain: config.rootDomain, ping }) };
 }
 
@@ -109,7 +109,7 @@ test('a session is created only while the email of its user is still allowed', a
   assert.equal(db.session!.length, 1);
 
   // Same database, restarted with the owner's email removed from ALLOWED_EMAILS.
-  const removed = createAuth({ ...config, allowedEmails: ['second@example.net'] }, memoryAdapter(db), async () => db.user!.length);
+  const removed = createAuth({ ...config, allowedEmails: ['second@example.net'] }, memoryAdapter(db), async () => db.user!.length, () => {});
   // The code makes the OAuth callback redirect to /sign-in?error=... instead of answering a bare 403.
   await assert.rejects((await removed.$context).internalAdapter.createSession(owner.id), { body: { code: 'SIGN_IN_REFUSED', message: 'This account is not allowed to sign in.' } });
   assert.equal(db.session!.length, 1);
@@ -123,7 +123,7 @@ test('on start, sessions of users whose email was removed are deleted', async ()
   assert.equal(await revokeRemovedUsers(auth, config.allowedEmails), 0);
   assert.equal(db.session!.length, 1);
 
-  const removed = createAuth({ ...config, allowedEmails: ['second@example.net'] }, memoryAdapter(db), async () => db.user!.length);
+  const removed = createAuth({ ...config, allowedEmails: ['second@example.net'] }, memoryAdapter(db), async () => db.user!.length, () => {});
   assert.equal(await revokeRemovedUsers(removed, ['second@example.net']), 1);
   assert.equal(db.session!.length, 0);
   assert.equal(db.user!.length, 1);

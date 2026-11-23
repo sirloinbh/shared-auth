@@ -10,9 +10,11 @@ test('ALLOWED_EMAILS is split, trimmed and lowercased', () => {
 test('only an allowed email may create the one owner user', () => {
   const allowed = ['owner@example.com'];
   assert.equal(newUserProblem('OWNER@example.com', allowed, 0), null);
-  assert.match(newUserProblem('stranger@example.com', allowed, 0) ?? '', /not allowed/);
-  assert.match(newUserProblem(null, allowed, 0) ?? '', /not allowed/);
-  assert.match(newUserProblem('owner@example.com', allowed, 1) ?? '', /link this one/);
+  assert.equal(newUserProblem('stranger@example.com', allowed, 0)?.reason, 'not_allowed');
+  assert.match(newUserProblem('stranger@example.com', allowed, 0)?.message ?? '', /not allowed/);
+  assert.equal(newUserProblem(null, allowed, 0)?.reason, 'not_allowed');
+  assert.equal(newUserProblem('owner@example.com', allowed, 1)?.reason, 'second_user');
+  assert.match(newUserProblem('owner@example.com', allowed, 1)?.message ?? '', /link this one/);
 });
 
 test('returnTo must be HTTPS on the root domain or one of its subdomains', () => {
