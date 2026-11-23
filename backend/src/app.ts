@@ -1,8 +1,9 @@
 import express from 'express';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
+import { returnName } from './apps.js';
 import type { Auth } from './auth.js';
 import { accountPage, signInPage, signOutPage } from './pages.js';
-import { safeReturnTo } from './rules.js';
+import { refusalMessage, safeReturnTo } from './rules.js';
 
 export type AppOptions = { baseURL: string; rootDomain: string; ping: () => Promise<void> };
 
@@ -34,7 +35,7 @@ export function createApp(auth: Auth, { baseURL, rootDomain, ping }: AppOptions)
   app.get('/sign-in', async (req, res) => {
     const returnTo = safeReturnTo(query(req.query.returnTo), rootDomain, account);
     if (await session(req)) return res.redirect(303, returnTo);
-    res.type('html').send(signInPage(returnTo, query(req.query.error) && 'Sign-in was refused. Use an allowed account.'));
+    res.type('html').send(signInPage({ returnTo, appName: returnName(returnTo, baseURL), error: refusalMessage(query(req.query.error)) }));
   });
 
   app.get('/account', async (req, res) => {
@@ -45,7 +46,8 @@ export function createApp(auth: Auth, { baseURL, rootDomain, ping }: AppOptions)
   });
 
   app.get('/sign-out', (req, res) => {
-    res.type('html').send(signOutPage(safeReturnTo(query(req.query.returnTo), rootDomain, account)));
+    const returnTo = safeReturnTo(query(req.query.returnTo), rootDomain, account);
+    res.type('html').send(signOutPage({ returnTo, appName: returnName(returnTo, baseURL) }));
   });
 
   app.get('/', (_req, res) => res.redirect(303, '/account'));

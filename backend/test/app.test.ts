@@ -46,6 +46,7 @@ test('the sign-in page offers GitHub and Google and never returns to a foreign s
     assert.match(page, /https:\/\/auth\.daysofme\.com\/account|http:\/\/localhost:3110\/account/);
     const app = await (await fetch(`${base}/sign-in?returnTo=${encodeURIComponent('https://workout-memo.daysofme.com/logs')}`)).text();
     assert.match(app, /workout-memo\.daysofme\.com\/logs/);
+    assert.match(app, /to continue to <strong>FORM · My Workout Log<\/strong>/);
   });
 });
 
@@ -87,9 +88,9 @@ test('a callback to a site outside the root domain is refused', async () => {
 test('only allowed emails create a user, and only the first one', async () => {
   const { auth, db } = setup();
   const ctx = await auth.$context;
-  await assert.rejects(ctx.internalAdapter.createUser({ email: 'stranger@example.com', name: 'x', emailVerified: true }), { body: { code: 'SIGN_IN_REFUSED', message: 'This account is not allowed to sign in.' } });
+  await assert.rejects(ctx.internalAdapter.createUser({ email: 'stranger@example.com', name: 'x', emailVerified: true }), { body: { code: 'not_allowed', message: 'This account is not allowed to sign in.' } });
   await ctx.internalAdapter.createUser({ email: 'owner@example.com', name: 'Owner', emailVerified: true });
-  await assert.rejects(ctx.internalAdapter.createUser({ email: 'second@example.net', name: 'x', emailVerified: true }), /link this one/);
+  await assert.rejects(ctx.internalAdapter.createUser({ email: 'second@example.net', name: 'x', emailVerified: true }), { body: { code: 'second_user', message: 'Sign in with the account you used first, then link this one on the account page.' } });
   assert.equal(db.user!.length, 1);
 });
 
@@ -110,8 +111,8 @@ test('a session is created only while the email of its user is still allowed', a
 
   // Same database, restarted with the owner's email removed from ALLOWED_EMAILS.
   const removed = createAuth({ ...config, allowedEmails: ['second@example.net'] }, memoryAdapter(db), async () => db.user!.length, () => {});
-  // The code makes the OAuth callback redirect to /sign-in?error=... instead of answering a bare 403.
-  await assert.rejects((await removed.$context).internalAdapter.createSession(owner.id), { body: { code: 'SIGN_IN_REFUSED', message: 'This account is not allowed to sign in.' } });
+  // The code makes the OAuth callback redirect to /sign-in?error=not_allowed instead of answering a bare 403.
+  await assert.rejects((await removed.$context).internalAdapter.createSession(owner.id), { body: { code: 'not_allowed', message: 'This account is not allowed to sign in.' } });
   assert.equal(db.session!.length, 1);
 });
 
@@ -179,5 +180,33 @@ test('session checks from app containers (no X-Real-IP) are not limited, browser
     for (let i = 0; i <= RATE_LIMIT.max; i++) assert.equal(await check({}), 200, `internal request ${i + 1}`);
     for (let i = 0; i < RATE_LIMIT.max; i++) assert.equal(await check({ 'x-real-ip': '203.0.113.30' }), 200, `browser request ${i + 1}`);
     assert.equal(await check({ 'x-real-ip': '203.0.113.30' }), 429);
+  });
+});
+
+test('a refused sign-in shows the message for its reason, and a fixed default for any other code', async () => {
+  await serve(setup().app, async (base) => {
+    const page = async (error: string) => (await fetch(`${base}/sign-in?error=${encodeURIComponent(error)}`)).text();
+    assert.match(await page('not_allowed'), /role="alert">This account is not allowed to sign in\.</);
+    assert.match(await page('second_user'), /role="alert">Sign in with the account you used first, then link this one on the account page\.</);
+    const unknown = await page('<script>alert(1)</script>');
+    assert.match(unknown, /role="alert">Sign-in did not finish\. Try again, and use an allowed account\.</);
+    assert.doesNotMatch(unknown, /alert\(1\)/);
+    assert.match(await page('toString'), /Sign-in did not finish/);
+    assert.match(await (await fetch(`${base}/sign-in`)).text(), /role="alert"><\/p>/);
+  });
+});
+
+test('a refused sign-in comes back to the sign-in page with the same returnTo', async () => {
+  await serve(setup().app, async (base) => {
+    const returnTo = 'https://workout-memo.daysofme.com/logs';
+    const page = await (await fetch(`${base}/sign-in?returnTo=${encodeURIComponent(returnTo)}`)).text();
+    const errorCallbackURL = `/sign-in?returnTo=${encodeURIComponent(returnTo)}`;
+    assert.ok(page.includes(`&#34;errorCallbackURL&#34;:&#34;${errorCallbackURL}&#34;`));
+    const r = await fetch(`${base}/api/auth/sign-in/social`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: config.baseURL },
+      body: JSON.stringify({ provider: 'github', callbackURL: returnTo, errorCallbackURL }),
+    });
+    assert.equal(r.status, 200);
   });
 });

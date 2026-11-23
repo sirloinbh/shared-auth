@@ -2,7 +2,7 @@
 // (ADR-0015 in sirloinbh/project-standards).
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { APIError, getIP } from 'better-auth/api';
-import { isAllowedEmail, NOT_ALLOWED, newUserProblem } from './rules.js';
+import { isAllowedEmail, newUserProblem, REFUSALS, type RefusalReason } from './rules.js';
 import { consoleSignInLog, maskEmail, type SignInLog } from './signin-log.js';
 
 export type AuthConfig = {
@@ -63,10 +63,11 @@ const internalSessionCheck = (request: Request, rule: { window: number; max: num
   request.headers.get(CLIENT_IP_HEADER) ? rule : (false as const);
 
 /**
- * A refusal from a hook. The OAuth callback redirects to the errorCallbackURL (/sign-in?error=...) only
- * when the error has a code; without one the browser would get a bare 403.
+ * A refusal from a hook. The OAuth callback redirects to the errorCallbackURL only when the error has a
+ * code (without one the browser would get a bare 403), and puts the code in it: /sign-in?error=<reason>.
+ * The sign-in page maps the reason to its message (#44).
  */
-const refused = (message: string) => new APIError('FORBIDDEN', { code: 'SIGN_IN_REFUSED', message });
+const refused = (reason: RefusalReason) => new APIError('FORBIDDEN', { code: reason, message: REFUSALS[reason] });
 
 /** Looks up a user's email by user id; null when the user does not exist. */
 export type FindUserEmail = (userId: string) => Promise<string | null>;
@@ -113,7 +114,7 @@ export function authOptions(
             if (!problem) return;
             const outcome = problem.reason === 'second_user' ? 'refused_second_user' : 'refused_not_allowed';
             signInLog({ outcome, provider: providerOf(ctx), email: maskEmail(user.email), ...client(ctx) });
-            throw refused(problem.message);
+            throw refused(problem.reason);
           },
         },
       },
@@ -123,7 +124,7 @@ export function authOptions(
           before: async (session, ctx) => {
             if (!isAllowedEmail(await findUserEmail(session.userId), config.allowedEmails)) {
               signInLog({ outcome: 'refused_not_allowed', provider: providerOf(ctx), userId: session.userId, ...client(ctx) });
-              throw refused(NOT_ALLOWED);
+              throw refused('not_allowed');
             }
           },
           // Only a sign-in creates a session here (linking a provider and refreshing do not).
