@@ -8,12 +8,17 @@ export function parseAllowedEmails(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
+/** True when the email is in ALLOWED_EMAILS (case ignored). */
+export function isAllowedEmail(email: string | null | undefined, allowed: string[]): boolean {
+  return !!email && allowed.includes(email.toLowerCase());
+}
+
 /**
  * Decides whether a new user may be created. There is one owner: the first allowed sign-in creates
  * that user, and the other provider is linked from /account instead of creating a second user.
  */
 export function newUserProblem(email: string | null | undefined, allowed: string[], existingUsers: number): string | null {
-  if (!email || !allowed.includes(email.toLowerCase())) return 'This account is not allowed to sign in.';
+  if (!isAllowedEmail(email, allowed)) return 'This account is not allowed to sign in.';
   if (existingUsers > 0) return 'Sign in with the account you used first, then link this one on the account page.';
   return null;
 }

@@ -8,7 +8,7 @@ import { loadConfig } from './config.js';
 const config = loadConfig();
 const pool = new pg.Pool({ connectionString: config.databaseUrl, max: 1 });
 try {
-  const { toBeCreated, toBeAdded, runMigrations } = await getMigrations(authOptions(config, pool, async () => 0));
+  const { toBeCreated, toBeAdded, runMigrations } = await getMigrations(authOptions(config, pool, async () => 0, async () => null));
   await runMigrations();
   console.log(`migrate: ${toBeCreated.length} tables created, ${toBeAdded.length} tables changed`);
 } finally {
