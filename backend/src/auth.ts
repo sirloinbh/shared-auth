@@ -79,6 +79,12 @@ export type FindUserEmail = (userId: string) => Promise<string | null>;
 type HookContext = { path?: string; params?: Record<string, string | undefined>; headers?: Headers; request?: Request } | null | undefined;
 
 /** The OAuth callback is /callback/:id, so the provider is the id parameter; a passkey sign-in is /passkey/verify-authentication. */
+/** The request ID requestLog set on the request (#64); absent outside a request. */
+const requestIdOf = (headers: Headers | undefined) => {
+  const requestId = headers?.get('x-request-id');
+  return requestId ? { requestId } : {};
+};
+
 const providerOf = (ctx: HookContext) => (ctx?.path?.startsWith('/passkey/') ? 'passkey' : (ctx?.params?.id ?? 'unknown'));
 
 export function authOptions(
@@ -91,7 +97,7 @@ export function authOptions(
   // Read the client address the way Better Auth does for the session row, so every line agrees.
   const client = (ctx: HookContext) => {
     const headers = ctx?.headers ?? ctx?.request?.headers;
-    return { ip: headers ? getIP(headers, options) : null, userAgent: headers?.get('user-agent') ?? null };
+    return { ip: headers ? getIP(headers, options) : null, userAgent: headers?.get('user-agent') ?? null, ...requestIdOf(headers) };
   };
   const options: BetterAuthOptions = {
     appName: 'daysofme sign-in',
@@ -132,7 +138,8 @@ export function authOptions(
           },
           // Only a sign-in creates a session here (linking a provider and refreshing do not).
           after: async (session, ctx) => {
-            signInLog({ outcome: 'success', provider: providerOf(ctx), userId: session.userId, ip: session.ipAddress ?? null, userAgent: session.userAgent ?? null });
+            const headers = ctx?.headers ?? ctx?.request?.headers;
+            signInLog({ outcome: 'success', provider: providerOf(ctx), userId: session.userId, ip: session.ipAddress ?? null, userAgent: session.userAgent ?? null, ...requestIdOf(headers) });
           },
         },
       },

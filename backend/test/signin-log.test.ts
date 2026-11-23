@@ -19,7 +19,8 @@ const config: AuthConfig = {
 
 const IP = '203.0.113.7';
 const UA = 'Mozilla/5.0 (test)';
-const signInWithGitHub = (base: string, account: { id: number; email: string }) => signIn(base, account, { ip: IP, userAgent: UA });
+const signInWithGitHub = (base: string, account: { id: number; email: string }, requestId?: string) => signIn(base, account, { ip: IP, userAgent: UA, requestId });
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 function setup(allowedEmails = config.allowedEmails) {
   const db: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [], passkey: [] };
@@ -41,12 +42,13 @@ async function serve(app: ReturnType<typeof setup>['app'], run: (base: string) =
 test('a successful GitHub sign-in logs one success with the user id, IP, and user agent', async () => {
   const { db, events, app } = setup();
   await serve(app, async (base) => {
-    const r = await signInWithGitHub(base, { id: 1, email: 'owner@example.com' });
+    const r = await signInWithGitHub(base, { id: 1, email: 'owner@example.com' }, 'app-req.1');
     assert.equal(r.status, 302);
+    assert.equal(r.headers.get('x-request-id'), 'app-req.1');
     assert.doesNotMatch(r.headers.get('location') ?? '', /error/);
   });
   const userId = (db.user![0] as { id: string }).id;
-  assert.deepEqual(events, [{ outcome: 'success', provider: 'github', userId, ip: IP, userAgent: UA }]);
+  assert.deepEqual(events, [{ outcome: 'success', provider: 'github', userId, ip: IP, userAgent: UA, requestId: 'app-req.1' }]);
 });
 
 test('an email outside the allow list logs one refusal with the email masked', async () => {
@@ -57,7 +59,8 @@ test('an email outside the allow list logs one refusal with the email masked', a
     assert.match(r.headers.get('location') ?? '', /^\/sign-in\?error=not_allowed&/);
   });
   assert.equal(db.user!.length, 0);
-  assert.deepEqual(events, [{ outcome: 'refused_not_allowed', provider: 'github', email: 's***@example.com', ip: IP, userAgent: UA }]);
+  assert.match(events[0]?.requestId ?? '', UUID, 'without an incoming ID the line gets a new one');
+  assert.deepEqual(events, [{ outcome: 'refused_not_allowed', provider: 'github', email: 's***@example.com', ip: IP, userAgent: UA, requestId: events[0]!.requestId }]);
 });
 
 test('a second allowed account logs a second-user refusal, not a success', async () => {
@@ -83,7 +86,8 @@ test('a removed email signing in again logs a refusal with its user id', async (
     assert.match(r.headers.get('location') ?? '', /^\/sign-in\?error=not_allowed&/);
   });
   const userId = (db.user![0] as { id: string }).id;
-  assert.deepEqual(events, [{ outcome: 'refused_not_allowed', provider: 'github', userId, ip: IP, userAgent: UA }]);
+  assert.match(events[0]?.requestId ?? '', UUID);
+  assert.deepEqual(events, [{ outcome: 'refused_not_allowed', provider: 'github', userId, ip: IP, userAgent: UA, requestId: events[0]!.requestId }]);
 });
 
 test('the log line is one JSON object: info for a success, warn for a refusal, no full email', () => {
