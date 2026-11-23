@@ -3,6 +3,7 @@
 One sign-in for every daysofme app ([ADR-0015](https://github.com/sirloinbh/project-standards/blob/main/docs/adr/0015-shared-sign-in.md)). It runs at `https://auth.daysofme.com` on the shared server, next to the apps.
 
 - Sign in with GitHub or Google. Only the emails in `ALLOWED_EMAILS` may sign in, and they form one owner: the first sign-in creates the owner, and the other provider is linked on `/account`.
+- A passkey registered on `/account` is the emergency way in when GitHub and Google are both unavailable (#54). It is tied to `auth.daysofme.com` (the WebAuthn relying party), and a passkey sign-in still has to pass the `ALLOWED_EMAILS` check.
 - `ALLOWED_EMAILS` is checked when the owner is created and again whenever a session is created, so a removed email cannot sign in again. Changing `ALLOWED_EMAILS` needs a restart (`bash deploy/deploy.sh`); on start the API deletes the open sessions of every user whose email is no longer listed, and logs how many it signed out.
 - The session cookie (`__Secure-sirloinbh.session_token`) is set on `daysofme.com`, so every app subdomain receives it. Apps check it with [`@sirloinbh/auth-client`](https://github.com/sirloinbh/project-standards/tree/main/packages/auth-client) over the private Docker network `shared-auth` (`http://shared-auth-api:3110`).
 - Built on [Better Auth](https://better-auth.com) 1.7.15 (pinned), Express 5, and PostgreSQL 17. Better Auth creates its own tables on start (`dist/migrate.js`).
@@ -11,8 +12,9 @@ One sign-in for every daysofme app ([ADR-0015](https://github.com/sirloinbh/proj
 
 | Path | What it does |
 |---|---|
-| `/sign-in?returnTo=<url>` | "Sign in to continue to <app>" with GitHub and Google buttons. `returnTo` must be HTTPS on `daysofme.com` or a subdomain; the app name comes from `backend/src/apps.ts` (a copy of the registry display names), and an unknown subdomain shows its host |
-| `/account` | The signed-in owner, the linked providers, buttons to link the other one, and sign-out |
+| `/sign-in?returnTo=<url>` | "Sign in to continue to <app>" with GitHub, Google, and passkey buttons. `returnTo` must be HTTPS on `daysofme.com` or a subdomain; the app name comes from `backend/src/apps.ts` (a copy of the registry display names), and an unknown subdomain shows its host |
+| `/account` | The signed-in owner, the linked providers, buttons to link the other one, the registered passkeys with "Add a passkey" and "Remove", and sign-out |
+| `/assets/webauthn.js` | The browser half of the passkey flow (`@simplewebauthn/browser`, served from the installed package) |
 | `/sign-out?returnTo=<url>` | Ends the session for every app |
 | `/api/auth/*` | Better Auth (`get-session`, `sign-in/social`, `callback/github`, `callback/google`, `link-social`, `sign-out`, ...) |
 | `/api/health` | 200 when the database answers. The `api` container's Compose healthcheck calls it, so `docker compose ps` shows `healthy` and `docker compose up -d --wait` waits for it |
@@ -31,13 +33,22 @@ Set in `SESSION` in `backend/src/auth.ts` (#39):
 | `updateAge` | 1 day | A session used after a day gets its database expiry moved forward |
 | `cookieCache` | off | The cache cookie would save database reads only for its `maxAge` after sign-in, and a signed-out or removed session would stay usable that long. `@sirloinbh/auth-client` already caches each successful check for 30 seconds, so a sign-out or a removed email reaches every app within 30 seconds |
 
+## Passkeys
+
+Built on `@better-auth/passkey` 1.7.15 (pinned; it brings `@simplewebauthn/server` and `@simplewebauthn/browser`). Better Auth's migration creates the `passkey` table on start.
+
+- Register a passkey while signed in: `/account`, "Add a passkey". Registering needs a session, so a stranger cannot add one. Add at least two (for example a phone and a laptop, or a hardware key), so losing one device is not the end.
+- Sign in: `/sign-in`, "Sign in with a passkey". The session is created through the same hooks as GitHub and Google, so an email removed from `ALLOWED_EMAILS` is refused, and the sign-in line is logged with provider `passkey`.
+- The relying party ID is the host of `BETTER_AUTH_URL` (`auth.daysofme.com`; `localhost` locally), so passkeys work only on these pages, which is where every sign-in happens.
+- A real registration needs a browser and HTTPS (or `localhost`); the tests cover the options, the guards, the account page, and the limits, not a real authenticator.
+
 ## Request limits
 
 Better Auth's rate limit, set in `RATE_LIMIT` in `backend/src/auth.ts` (#37). It counts requests to `/api/auth/*` per client IP and path, in memory (one API container; a restart clears the counts). Over the limit, the answer is `429` with `X-Retry-After` in seconds.
 
 | Path under `/api/auth` | Limit |
 |---|---|
-| `/sign-in/*`, `/link-social`, `/callback/*` | 10 per minute |
+| `/sign-in/*`, `/link-social`, `/callback/*`, `/passkey/*` | 10 per minute |
 | `/get-session` from an app container (no `X-Real-IP`) | Not limited; `@sirloinbh/auth-client` caches each check for 30 seconds |
 | Everything else, including `/get-session` from a browser | 100 per minute |
 

@@ -1,5 +1,6 @@
-// The Better Auth instance: GitHub and Google, one owner, one session cookie for every app subdomain
+// The Better Auth instance: GitHub and Google, a passkey as the emergency way in (#54), one owner, one session cookie for every app subdomain
 // (ADR-0015 in sirloinbh/project-standards).
+import { passkey } from '@better-auth/passkey';
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { APIError, getIP } from 'better-auth/api';
 import { isAllowedEmail, NOT_ALLOWED, newUserProblem } from './rules.js';
@@ -51,6 +52,8 @@ export const RATE_LIMIT = {
     '/sign-in/*': { window: 60, max: 10 },
     '/link-social': { window: 60, max: 10 },
     '/callback/*': { window: 60, max: 10 },
+    // Passkey options, registration, sign-in, and deletion (#54).
+    '/passkey/*': { window: 60, max: 10 },
   },
 } as const;
 
@@ -72,10 +75,10 @@ const refused = (message: string) => new APIError('FORBIDDEN', { code: 'SIGN_IN_
 export type FindUserEmail = (userId: string) => Promise<string | null>;
 
 /** The endpoint context Better Auth passes to a database hook; null outside a request. */
-type HookContext = { params?: Record<string, string | undefined>; headers?: Headers; request?: Request } | null | undefined;
+type HookContext = { path?: string; params?: Record<string, string | undefined>; headers?: Headers; request?: Request } | null | undefined;
 
-/** The OAuth callback is /callback/:id, so the provider is the id parameter. */
-const providerOf = (ctx: HookContext) => ctx?.params?.id ?? 'unknown';
+/** The OAuth callback is /callback/:id, so the provider is the id parameter; a passkey sign-in is /passkey/verify-authentication. */
+const providerOf = (ctx: HookContext) => (ctx?.path?.startsWith('/passkey/') ? 'passkey' : (ctx?.params?.id ?? 'unknown'));
 
 export function authOptions(
   config: AuthConfig,
@@ -95,7 +98,7 @@ export function authOptions(
     secret: config.secret,
     database,
     session: { expiresIn: SESSION.expiresIn, updateAge: SESSION.updateAge, cookieCache: { ...SESSION.cookieCache } },
-    // Sign-in is only through GitHub or Google; there are no passwords.
+    // Sign-in is through GitHub, Google, or a passkey registered on /account; there are no passwords.
     emailAndPassword: { enabled: false },
     socialProviders: {
       github: { clientId: config.github.clientId, clientSecret: config.github.clientSecret },
@@ -133,6 +136,12 @@ export function authOptions(
         },
       },
     },
+    plugins: [
+      // A passkey works only on this service's host (the relying party), so the browser offers it only on
+      // the auth pages. Registering one needs a signed-in session (the plugin's default). Its sign-in creates
+      // the session through the hooks above, so the allow list still applies.
+      passkey({ rpID: new URL(config.baseURL).hostname, rpName: 'daysofme', origin: new URL(config.baseURL).origin }),
+    ],
     // Callbacks may return to this service or any app under the root domain.
     trustedOrigins: [config.baseURL, `https://*.${config.rootDomain}`],
     rateLimit: {

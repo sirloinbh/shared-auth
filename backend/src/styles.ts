@@ -68,6 +68,7 @@ export const STYLES = `
   .list { margin: 0; padding: 0; list-style: none; border: 1px solid var(--border); border-radius: calc(var(--radius) - 2px); }
   .list li { display: flex; align-items: center; gap: 0.75rem; min-height: 3.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem; }
   .list li + li { border-top: 1px solid var(--border); }
+  .muted { color: var(--muted-foreground); }
   .grow { flex: 1; }
   .badge { padding: 0.125rem 0.5rem; border-radius: calc(var(--radius) - 4px); background: var(--secondary); color: var(--secondary-foreground); font-size: 0.75rem; line-height: 1rem; font-weight: 500; }
   .mark { width: 1.25rem; height: 1.25rem; flex: none; }
