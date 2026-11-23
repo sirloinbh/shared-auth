@@ -78,7 +78,7 @@ test('the account page lists passkeys, and the owner can remove one', async () =
   db.passkey!.push({ id: 'pk1', name: 'Laptop', publicKey: 'x', userId: owner.id, credentialID: 'c1', counter: 0, deviceType: 'singleDevice', backedUp: false, createdAt: new Date('2026-11-01T00:00:00Z') });
   await serve(app, async (base) => {
     const page = await (await fetch(`${base}/account`, { headers: { cookie } })).text();
-    assert.match(page, /Laptop <span class="muted">added 2026-11-01<\/span>/);
+    assert.match(page, /<span class="title">Laptop<\/span><span class="meta">added <time datetime="2026-11-01T00:00:00.000Z">/);
     assert.match(page, /data-passkey="register"/);
 
     const register = await fetch(`${base}/api/auth/passkey/generate-register-options`, { headers: { cookie, 'x-real-ip': '203.0.113.41' } });

@@ -14,12 +14,13 @@ Sign-in was only through GitHub or Google, so losing both meant no way into any 
 - `backend/src/pages.ts`, `backend/src/styles.ts`: "Sign in with a passkey" on `/sign-in`; a Passkeys list with "Add a passkey" and "Remove" on `/account`.
 - `backend/test/passkey.test.ts`: the plugin and its table; the sign-in button and the served script; authentication options name this host; registration needs a session; the account page lists and removes a passkey; the 429 after 10 requests.
 - `README.md`: a "Passkeys" section, the new path, and the limit.
+- Merged `origin/main` twice (#44 refusal reasons, #42 session list). `/account` now shows the passkeys above the active sessions, in #42's row style (title, then the date in Seoul time). The in-memory test databases in `test/account.test.ts`, `test/app.test.ts`, and `test/signin-log.test.ts` gained a `passkey` table, which the real database gets from the migration.
 
 ## Verification
 
 - `npm ci` (clean `node_modules`, no flags): passed.
 - `npm run typecheck`: passed.
-- `npm test`: 36 passed, 0 failed.
+- `npm test`: 44 passed, 0 failed (after merging `origin/main` with #44 and #42).
 - `npm run build`: passed, and the built `dist/app.js` loads and finds the WebAuthn bundle.
 - Not run: a real passkey registration and sign-in, which needs a browser authenticator on the server's HTTPS address.
 

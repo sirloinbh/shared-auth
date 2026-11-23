@@ -110,18 +110,44 @@ ${passkeyButton('sign-in', returnTo, '<span>Sign in with a passkey</span>')}
   );
 }
 
+/** One active session on the account page. `device` is already a short name (devices.ts). */
+export type SessionRow = { id: string; current: boolean; device: string; ip: string | null; createdAt: Date; lastUsedAt: Date };
+
+// The owner lives in Seoul (the server's timers use Seoul time too), so times are shown in that zone.
+const TIME = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short' });
+const time = (d: Date) => `<time datetime="${d.toISOString()}">${escape(TIME.format(d))}</time>`;
+
+function sessionList(sessions: SessionRow[]): string {
+  const rows = sessions.map(
+    (s) => `<li><span class="grow"><span class="title">${escape(s.device)}</span><span class="meta">${s.ip ? `${escape(s.ip)} · ` : ''}signed in ${time(s.createdAt)} · last used ${time(s.lastUsedAt)}</span></span>${
+      s.current ? '<span class="badge">This device</span>' : button('/account/sessions/revoke', { id: s.id }, 'Sign out', { done: '/account', kind: 'small' })
+    }</li>`,
+  );
+  const others = sessions.filter((s) => !s.current).length;
+  return `<h2>Active sessions</h2>
+<ul class="list">
+${rows.join('\n')}
+</ul>
+${others > 1 ? button('/api/auth/revoke-other-sessions', {}, 'Sign out other devices', { done: '/account' }) : ''}`;
+}
+
 /** A passkey registered on /account, as the account page lists it. */
 export type PasskeyRow = { id: string; name: string | null; createdAt: Date };
 
-const day = (d: Date) => d.toISOString().slice(0, 10);
+function passkeyList(passkeys: PasskeyRow[]): string {
+  const rows = passkeys.map(
+    (k) =>
+      `<li><span class="grow"><span class="title">${escape(k.name || 'Passkey')}</span><span class="meta">added ${time(k.createdAt)}</span></span>${button('/api/auth/passkey/delete-passkey', { id: k.id }, 'Remove', { done: '/account', kind: 'small' })}</li>`,
+  );
+  return `<h2>Passkeys</h2>
+<p class="lead">A passkey signs you in if GitHub and Google are both unavailable. Add one on each device you use.</p>
+<ul class="list">
+${rows.join('\n') || '<li><span class="grow muted">No passkey yet</span></li>'}
+</ul>
+${passkeyButton('register', '/account', 'Add a passkey', 'small')}`;
+}
 
-export function accountPage(user: { name: string | null; email: string }, linked: string[], passkeys: PasskeyRow[] = []): string {
-  const keys = passkeys
-    .map(
-      (k) =>
-        `<li><span class="grow">${escape(k.name || 'Passkey')} <span class="muted">added ${day(k.createdAt)}</span></span>${button('/api/auth/passkey/delete-passkey', { id: k.id }, 'Remove', { done: '/account', kind: 'small' })}</li>`,
-    )
-    .join('\n');
+export function accountPage(user: { name: string | null; email: string }, linked: string[], sessions: SessionRow[] = [], passkeys: PasskeyRow[] = []): string {
   const rows = PROVIDERS.map(
     (p) => `<li>${p.mark}<span class="grow">${escape(p.label)}</span>${
       linked.includes(p.id)
@@ -137,12 +163,8 @@ export function accountPage(user: { name: string | null; email: string }, linked
 <ul class="list">
 ${rows}
 </ul>
-<h2>Passkeys</h2>
-<p class="lead">A passkey signs you in if GitHub and Google are both unavailable. Add one on each device you use.</p>
-<ul class="list">
-${keys || '<li><span class="grow muted">No passkey yet</span></li>'}
-</ul>
-${passkeyButton('register', '/account', 'Add a passkey', 'small')}
+${passkeyList(passkeys)}
+${sessions.length ? sessionList(sessions) : ''}
 ${button('/api/auth/sign-out', {}, 'Sign out', { done: '/sign-in' })}`,
     'This account signs you in to every daysofme app.',
     '',

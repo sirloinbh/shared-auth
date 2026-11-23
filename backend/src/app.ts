@@ -5,7 +5,8 @@ import express from 'express';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { returnName } from './apps.js';
 import type { Auth } from './auth.js';
-import { accountPage, type PasskeyRow, signInPage, signOutPage } from './pages.js';
+import { describeDevice } from './devices.js';
+import { accountPage, type PasskeyRow, type SessionRow, signInPage, signOutPage } from './pages.js';
 import { refusalMessage, safeReturnTo } from './rules.js';
 
 // The browser half of the passkey flow (#54), served from the installed package instead of a CDN.
@@ -39,6 +40,11 @@ export function createApp(auth: Auth, { baseURL, rootDomain, ping }: AppOptions)
   const account = `${baseURL}/account`;
   const query = (v: unknown) => (typeof v === 'string' ? v : undefined);
   const session = (req: express.Request) => auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
+  // Read through the adapter: Better Auth's list-sessions endpoint needs a session younger than a day.
+  const activeSessions = async (userId: string) => {
+    const now = new Date();
+    return (await (await auth.$context).internalAdapter.listSessions(userId)).filter((s) => s.expiresAt > now);
+  };
 
   app.get('/sign-in', async (req, res) => {
     const returnTo = safeReturnTo(query(req.query.returnTo), rootDomain, account);
@@ -50,8 +56,26 @@ export function createApp(auth: Auth, { baseURL, rootDomain, ping }: AppOptions)
     const current = await session(req);
     if (!current) return res.redirect(303, `/sign-in?returnTo=${encodeURIComponent(account)}`);
     const accounts = await auth.api.listUserAccounts({ headers: fromNodeHeaders(req.headers) });
+    const sessions: SessionRow[] = (await activeSessions(current.user.id))
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+      .map((s) => ({ id: s.id, current: s.id === current.session.id, device: describeDevice(s.userAgent), ip: s.ipAddress ?? null, createdAt: s.createdAt, lastUsedAt: s.updatedAt }));
     const passkeys = await (await auth.$context).adapter.findMany<PasskeyRow>({ model: 'passkey', where: [{ field: 'userId', value: current.user.id }] });
-    res.type('html').send(accountPage({ name: current.user.name ?? null, email: current.user.email }, accounts.map((a) => a.providerId), passkeys));
+    res.type('html').send(accountPage({ name: current.user.name ?? null, email: current.user.email }, accounts.map((a) => a.providerId), sessions, passkeys));
+  });
+
+  // Signs out one other session by its id, so session tokens never reach the page (#42). Better Auth's
+  // own endpoints check the Origin of every POST; this route does the same, and takes JSON only, which a
+  // cross-site form cannot send.
+  app.post('/account/sessions/revoke', express.json({ limit: '1kb' }), async (req, res) => {
+    if (req.get('origin') !== new URL(baseURL).origin) return res.status(403).json({ message: 'This request did not come from the account page.' });
+    const current = await session(req);
+    if (!current) return res.status(401).json({ message: 'Sign in again to manage your sessions.' });
+    const id = typeof req.body?.id === 'string' ? req.body.id : '';
+    const target = (await activeSessions(current.user.id)).find((s) => s.id === id);
+    if (!target) return res.status(404).json({ message: 'That session has already ended.' });
+    if (target.id === current.session.id) return res.status(400).json({ message: 'Use Sign out to end the session on this device.' });
+    await auth.api.revokeSession({ body: { token: target.token }, headers: fromNodeHeaders(req.headers) });
+    res.json({ status: true });
   });
 
   app.get('/sign-out', (req, res) => {
