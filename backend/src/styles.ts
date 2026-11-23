@@ -65,6 +65,7 @@ export const STYLES = `
   .lead strong { color: var(--card-foreground); font-weight: 600; }
   .note { text-align: center; font-size: 0.75rem; line-height: 1rem; color: var(--muted-foreground); }
   .stack { display: grid; gap: 0.75rem; }
+  .hint { font-size: 0.75rem; line-height: 1rem; color: var(--muted-foreground); }
   .list { margin: 0; padding: 0; list-style: none; border: 1px solid var(--border); border-radius: calc(var(--radius) - 2px); }
   .list li { display: flex; align-items: center; gap: 0.75rem; min-height: 3.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem; }
   .list li + li { border-top: 1px solid var(--border); }
@@ -79,6 +80,8 @@ export const STYLES = `
   button.primary { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); }
   button.primary:hover { opacity: 0.9; }
   button.small { min-height: 2.25rem; padding: 0.25rem 0.75rem; }
+  button.link { display: inline; min-height: 0; padding: 0; border: 0; background: none; color: var(--foreground); font-size: inherit; text-decoration: underline; text-underline-offset: 2px; }
+  button.link:hover { background: none; }
   button:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
   button:disabled { opacity: 0.5; cursor: default; }
   .error { text-align: center; font-size: 0.875rem; line-height: 1.25rem; color: var(--destructive); }

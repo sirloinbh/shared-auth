@@ -89,7 +89,7 @@ const passkeyButton = (flow: 'register' | 'sign-in', done: string, content: stri
   `<button type="button" class="${kind}" data-passkey="${flow}" data-done="${escape(done)}">${content}</button>`;
 
 /** A button that posts `body` to `endpoint`. `content` is trusted HTML (marks and escaped labels). */
-const button = (endpoint: string, body: object, content: string, { done, kind = 'outline' }: { done?: string; kind?: 'outline' | 'primary' | 'small' } = {}) =>
+const button = (endpoint: string, body: object, content: string, { done, kind = 'outline' }: { done?: string; kind?: 'outline' | 'primary' | 'small' | 'link' } = {}) =>
   `<button type="button" class="${kind}" data-endpoint="${endpoint}" data-body="${escape(JSON.stringify(body))}"${done ? ` data-done="${escape(done)}"` : ''}>${content}</button>`;
 
 export function signInPage({ returnTo, appName, error }: { returnTo: string; appName: string; error?: string }): string {
@@ -147,14 +147,30 @@ ${rows.join('\n') || '<li><span class="grow muted">No passkey yet</span></li>'}
 ${passkeyButton('register', '/account', 'Add a passkey', 'small')}`;
 }
 
-export function accountPage(user: { name: string | null; email: string }, linked: string[], sessions: SessionRow[] = [], passkeys: PasskeyRow[] = []): string {
-  const rows = PROVIDERS.map(
-    (p) => `<li>${p.mark}<span class="grow">${escape(p.label)}</span>${
-      linked.includes(p.id)
-        ? '<span class="badge">Linked</span>'
-        : button('/api/auth/link-social', { provider: p.id, callbackURL: '/account', errorCallbackURL: '/account' }, `Link ${escape(p.label)}`, { kind: 'small' })
-    }</li>`,
-  ).join('\n');
+/** A linked provider: Better Auth's account row id (what unlink-account takes) and the provider. */
+export type LinkedAccount = { id: string; providerId: string };
+
+export type AccountView = {
+  linked: LinkedAccount[];
+  sessions?: SessionRow[];
+  passkeys?: PasskeyRow[];
+  /** Better Auth unlinks only from a session younger than its freshAge; older ones must sign in again. */
+  canUnlink?: boolean;
+  /** A fixed message for a failed link (rules.ts linkErrorMessage), never the query text. */
+  error?: string;
+};
+
+export function accountPage(user: { name: string | null; email: string }, { linked, sessions = [], passkeys = [], canUnlink = true, error }: AccountView): string {
+  // The last provider can never be unlinked: it is the only way to sign in.
+  const unlinkable = linked.length > 1;
+  const rows = PROVIDERS.map((p) => {
+    const account = linked.find((a) => a.providerId === p.id);
+    const action = !account
+      ? button('/api/auth/link-social', { provider: p.id, callbackURL: '/account', errorCallbackURL: '/account' }, `Link ${escape(p.label)}`, { kind: 'small' })
+      : `<span class="badge">Linked</span>${unlinkable && canUnlink ? button('/api/auth/unlink-account', { accountId: account.id }, `Unlink ${escape(p.label)}`, { done: '/account', kind: 'small' }) : ''}`;
+    return `<li>${p.mark}<span class="grow">${escape(p.label)}</span>${action}</li>`;
+  }).join('\n');
+  const unlinkNote = unlinkable && !canUnlink ? `<p class="hint">To unlink a provider, sign in again first: unlinking needs a sign-in from the last day. ${button('/api/auth/sign-out', {}, 'Sign in again', { done: '/sign-in', kind: 'link' })}</p>` : '';
   return layout(
     'Account',
     `<h1>${escape(user.name ?? user.email)}</h1>
@@ -163,11 +179,12 @@ export function accountPage(user: { name: string | null; email: string }, linked
 <ul class="list">
 ${rows}
 </ul>
+${unlinkNote}
 ${passkeyList(passkeys)}
 ${sessions.length ? sessionList(sessions) : ''}
 ${button('/api/auth/sign-out', {}, 'Sign out', { done: '/sign-in' })}`,
     'This account signs you in to every daysofme app.',
-    '',
+    error,
     SCRIPT + PASSKEY_SCRIPT,
   );
 }

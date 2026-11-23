@@ -14,7 +14,7 @@ Sign-in was only through GitHub or Google, so losing both meant no way into any 
 - `backend/src/pages.ts`, `backend/src/styles.ts`: "Sign in with a passkey" on `/sign-in`; a Passkeys list with "Add a passkey" and "Remove" on `/account`.
 - `backend/test/passkey.test.ts`: the plugin and its table; the sign-in button and the served script; authentication options name this host; registration needs a session; the account page lists and removes a passkey; the 429 after 10 requests.
 - `README.md`: a "Passkeys" section, the new path, and the limit.
-- Merged `origin/main` twice (#44 refusal reasons, #42 session list). `/account` now shows the passkeys above the active sessions, in #42's row style (title, then the date in Seoul time). The in-memory test databases in `test/account.test.ts`, `test/app.test.ts`, and `test/signin-log.test.ts` gained a `passkey` table, which the real database gets from the migration.
+- Merged `origin/main` four times (#44 refusal reasons, #42 session list, #36 new-device alert, #43 unlink provider); `npm test` then passed 57 of 57. `/account` now shows the passkeys above the active sessions, in #42's row style (title, then the date in Seoul time). The in-memory test databases in `test/account.test.ts`, `test/app.test.ts`, and `test/signin-log.test.ts` gained a `passkey` table, which the real database gets from the migration.
 
 ## Verification
 

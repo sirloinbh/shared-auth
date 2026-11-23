@@ -45,6 +45,22 @@ export function refusalMessage(code: string | undefined): string | undefined {
   return Object.hasOwn(REFUSALS, code) ? REFUSALS[code as RefusalReason] : SIGN_IN_FAILED;
 }
 
+/**
+ * Messages for a failed link on /account (/account?error=<code>). The codes are Better Auth's own OAuth
+ * callback codes; any other code shows the default, and the code itself is never shown.
+ */
+const LINK_ERRORS: Record<string, string> = {
+  account_already_linked_to_different_user: 'That account is already linked to another user.',
+};
+
+export const LINK_FAILED = 'Linking did not finish. Try again.';
+
+/** The fixed message for a failed link, or nothing when there is no error code. */
+export function linkErrorMessage(code: string | undefined): string | undefined {
+  if (!code) return undefined;
+  return Object.hasOwn(LINK_ERRORS, code) ? LINK_ERRORS[code] : LINK_FAILED;
+}
+
 /** Why a new user was refused: not in ALLOWED_EMAILS, or allowed but not the first (the one owner). */
 export type NewUserProblem = { reason: RefusalReason; message: string };
 
