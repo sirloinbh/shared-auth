@@ -11,8 +11,10 @@ services:
     ports: ['127.0.0.1:${DB_PORT:-15410}:5432']
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U auth -d auth']
-      interval: 5s
-      retries: 10
+      interval: 60s
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
   api:
     build: { context: ./backend, secrets: [npm_token] }
     image: shared-auth-backend:${IMAGE_TAG:-local}
@@ -26,10 +28,11 @@ services:
     # node's fetch asks /api/health (200 when the database answers). `docker compose up -d --wait` waits for it.
     healthcheck:
       test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3110/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
-      interval: 5s
+      interval: 60s
       timeout: 5s
-      retries: 15
-      start_period: 10s
+      retries: 3
+      start_period: 60s
+      start_interval: 2s
     environment:
       PORT: 3110
       DATABASE_URL: postgres://auth:${POSTGRES_PASSWORD}@db:5432/auth
