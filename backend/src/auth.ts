@@ -16,6 +16,12 @@ export type AuthConfig = {
   production: boolean;
 };
 
+/**
+ * A refusal from a hook. The OAuth callback redirects to the errorCallbackURL (/sign-in?error=...) only
+ * when the error has a code; without one the browser would get a bare 403.
+ */
+const refused = (message: string) => new APIError('FORBIDDEN', { code: 'SIGN_IN_REFUSED', message });
+
 /** Looks up a user's email by user id; null when the user does not exist. */
 export type FindUserEmail = (userId: string) => Promise<string | null>;
 
@@ -45,7 +51,7 @@ export function authOptions(
         create: {
           before: async (user) => {
             const problem = newUserProblem(user.email, config.allowedEmails, await countUsers());
-            if (problem) throw new APIError('FORBIDDEN', { message: problem });
+            if (problem) throw refused(problem);
           },
         },
       },
@@ -54,7 +60,7 @@ export function authOptions(
           // ALLOWED_EMAILS is checked again at every sign-in, so removing an email locks that user out.
           before: async (session) => {
             if (!isAllowedEmail(await findUserEmail(session.userId), config.allowedEmails)) {
-              throw new APIError('FORBIDDEN', { message: 'This account is not allowed to sign in.' });
+              throw refused('This account is not allowed to sign in.');
             }
           },
         },

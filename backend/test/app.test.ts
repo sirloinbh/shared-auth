@@ -87,7 +87,7 @@ test('a callback to a site outside the root domain is refused', async () => {
 test('only allowed emails create a user, and only the first one', async () => {
   const { auth, db } = setup();
   const ctx = await auth.$context;
-  await assert.rejects(ctx.internalAdapter.createUser({ email: 'stranger@example.com', name: 'x', emailVerified: true }), /not allowed/);
+  await assert.rejects(ctx.internalAdapter.createUser({ email: 'stranger@example.com', name: 'x', emailVerified: true }), { body: { code: 'SIGN_IN_REFUSED', message: 'This account is not allowed to sign in.' } });
   await ctx.internalAdapter.createUser({ email: 'owner@example.com', name: 'Owner', emailVerified: true });
   await assert.rejects(ctx.internalAdapter.createUser({ email: 'second@example.net', name: 'x', emailVerified: true }), /link this one/);
   assert.equal(db.user!.length, 1);
@@ -110,7 +110,8 @@ test('a session is created only while the email of its user is still allowed', a
 
   // Same database, restarted with the owner's email removed from ALLOWED_EMAILS.
   const removed = createAuth({ ...config, allowedEmails: ['second@example.net'] }, memoryAdapter(db), async () => db.user!.length);
-  await assert.rejects((await removed.$context).internalAdapter.createSession(owner.id), /not allowed/);
+  // The code makes the OAuth callback redirect to /sign-in?error=... instead of answering a bare 403.
+  await assert.rejects((await removed.$context).internalAdapter.createSession(owner.id), { body: { code: 'SIGN_IN_REFUSED', message: 'This account is not allowed to sign in.' } });
   assert.equal(db.session!.length, 1);
 });
 

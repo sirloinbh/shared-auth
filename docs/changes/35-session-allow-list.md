@@ -13,11 +13,12 @@ Issue: https://github.com/sirloinbh/shared-auth/issues/35
 - `backend/src/rules.ts`: `isAllowedEmail`, shared by the user and session checks.
 - `backend/src/migrate.ts`: passes a no-op lookup (migrations never create sessions).
 - `README.md`: the allow list rule and the restart step.
+- Review round 1: both hooks now throw an `APIError` with the code `SIGN_IN_REFUSED`. Better Auth's OAuth callback redirects to the `errorCallbackURL` (`/sign-in?error=...`) only when the error has a code; without one the browser got a bare 403. This also fixes the existing user-creation refusal.
 
 ## Verification
 
 - `npm run typecheck`: passed.
-- `npm test`: 15 passed, 0 failed. New tests: a session is refused for a user whose email was removed; on start, the removed user's sessions are deleted and an allowed user's are kept.
+- `npm test`: 15 passed, 0 failed. New tests: a session is refused (with the `SIGN_IN_REFUSED` code) for a user whose email was removed; on start, the removed user's sessions are deleted and an allowed user's are kept.
 - Not run: a real sign-in, which works only on the server (AGENTS.project.md).
 
 ## Limits and follow-up
