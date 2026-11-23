@@ -12,7 +12,7 @@ The issue suggested `getSession({ returnHeaders: true })` and forwarding its `Se
 
 ## Changes
 
-- `backend/src/session-cookie.ts`: reads the session cookie from the request, and builds the `Set-Cookie` line with the name and attributes Better Auth uses (`authCookies.sessionToken`: path, domain on `daysofme.com` in production, `HttpOnly`, `Secure`, `SameSite=Lax`). Nothing is sent without a valid session or after the session ended.
+- `backend/src/session-cookie.ts`: reads the session cookie that carries the token Better Auth just accepted (a browser can send two cookies with one name; review round 1), and builds the `Set-Cookie` line with the name and attributes Better Auth uses (`authCookies.sessionToken`: path, domain on `daysofme.com` in production, `HttpOnly`, `Secure`, `SameSite=Lax`). Nothing is sent without a valid session or after the session ended.
 - `backend/src/app.ts`: `/account`, and `/sign-in` when signed in (before the redirect back to the app), renew the cookie after `getSession` confirmed the session.
 - `backend/test/session-cookie.test.ts`: the line format; a session whose database expiry moved on gets a cookie with the same value and the remaining lifetime on `/account` and on `/sign-in`; a forged cookie gets nothing.
 - `README.md`: the `expiresIn` row in "Sessions".

@@ -21,16 +21,19 @@ const config: AuthConfig = {
 const DAY = 24 * 60 * 60;
 
 test('the cookie value is read as sent, and the renewed line keeps the name, value, and attributes', () => {
-  assert.equal(cookieValue('a=1; sirloinbh.session_token=tok.sig%3D; b=2', 'sirloinbh.session_token'), 'tok.sig%3D');
-  assert.equal(cookieValue('xsirloinbh.session_token=1', 'sirloinbh.session_token'), null);
-  assert.equal(cookieValue(undefined, 'sirloinbh.session_token'), null);
+  assert.equal(cookieValue('a=1; sirloinbh.session_token=tok.sig%3D; b=2', 'sirloinbh.session_token', 'tok'), 'tok.sig%3D');
+  // Two cookies with one name: only the one carrying the accepted token is renewed.
+  assert.equal(cookieValue('sirloinbh.session_token=planted.x; sirloinbh.session_token=tok.sig', 'sirloinbh.session_token', 'tok'), 'tok.sig');
+  assert.equal(cookieValue('sirloinbh.session_token=planted.x', 'sirloinbh.session_token', 'tok'), null);
+  assert.equal(cookieValue('xsirloinbh.session_token=tok.1', 'sirloinbh.session_token', 'tok'), null);
+  assert.equal(cookieValue(undefined, 'sirloinbh.session_token', 'tok'), null);
 
   const cookie = { name: '__Secure-sirloinbh.session_token', attributes: { path: '/', domain: 'daysofme.com', secure: true, httpOnly: true, sameSite: 'lax' } };
   const now = Date.UTC(2026, 10, 23);
-  const line = renewedCookie(cookie, '__Secure-sirloinbh.session_token=tok.sig%3D', new Date(now + 20 * DAY * 1000), now);
+  const line = renewedCookie(cookie, '__Secure-sirloinbh.session_token=tok.sig%3D', { token: 'tok', expiresAt: new Date(now + 20 * DAY * 1000) }, now);
   assert.equal(line, `__Secure-sirloinbh.session_token=tok.sig%3D; Max-Age=${20 * DAY}; Expires=${new Date(now + 20 * DAY * 1000).toUTCString()}; Path=/; Domain=daysofme.com; HttpOnly; Secure; SameSite=Lax`);
-  assert.equal(renewedCookie(cookie, '', new Date(now + DAY * 1000), now), null, 'no cookie, nothing to renew');
-  assert.equal(renewedCookie(cookie, '__Secure-sirloinbh.session_token=x', new Date(now - 1000), now), null, 'an ended session is not renewed');
+  assert.equal(renewedCookie(cookie, '', { token: 'tok', expiresAt: new Date(now + DAY * 1000) }, now), null, 'no cookie, nothing to renew');
+  assert.equal(renewedCookie(cookie, '__Secure-sirloinbh.session_token=tok.x', { token: 'tok', expiresAt: new Date(now - 1000) }, now), null, 'an ended session is not renewed');
 });
 
 function setup() {
@@ -104,6 +107,6 @@ test('without a session there is no cookie to renew', async () => {
 
 test('the renewal never outlasts the configured session lifetime', () => {
   const now = Date.now();
-  const line = renewedCookie({ name: 'n', attributes: {} }, 'n=v', new Date(now + SESSION.expiresIn * 1000), now);
+  const line = renewedCookie({ name: 'n', attributes: {} }, 'n=t.v', { token: 't', expiresAt: new Date(now + SESSION.expiresIn * 1000) }, now);
   assert.equal(Number(/Max-Age=(\d+)/.exec(line ?? '')?.[1]), SESSION.expiresIn);
 });

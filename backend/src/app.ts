@@ -42,8 +42,8 @@ export function createApp(auth: Auth, { baseURL, rootDomain, ping }: AppOptions)
   const query = (v: unknown) => (typeof v === 'string' ? v : undefined);
   const session = (req: express.Request) => auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
   // The browser cookie keeps the lifetime it got at sign-in; the auth pages renew it (#48).
-  const renew = async (req: express.Request, res: express.Response, current: { session: { expiresAt: Date | string } }) =>
-    renewSessionCookie(res, (await auth.$context).authCookies.sessionToken, req.headers.cookie, current.session.expiresAt);
+  const renew = async (req: express.Request, res: express.Response, current: { session: { token: string; expiresAt: Date | string } }) =>
+    renewSessionCookie(res, (await auth.$context).authCookies.sessionToken, req.headers.cookie, current.session);
   // Read through the adapter: Better Auth's list-sessions endpoint needs a session younger than a day.
   const activeSessions = async (userId: string) => {
     const now = new Date();

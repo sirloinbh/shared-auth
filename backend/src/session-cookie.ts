@@ -13,18 +13,31 @@ export type CookieShape = {
   attributes: { path?: string; domain?: string; secure?: boolean; httpOnly?: boolean; sameSite?: string | boolean };
 };
 
-/** The raw value of one cookie in a Cookie header, as the browser sent it (still URL-encoded). */
-export function cookieValue(header: string | undefined, name: string): string | null {
+/**
+ * The raw value (still URL-encoded) of the cookie `name` that carries `token`. A browser can send two
+ * cookies with one name (for example one on daysofme.com and one on this host), so only the one Better
+ * Auth accepted, whose value is `<token>.<signature>`, is renewed.
+ */
+export function cookieValue(header: string | undefined, name: string, token: string): string | null {
   for (const part of (header ?? '').split(';')) {
     const eq = part.indexOf('=');
-    if (eq > 0 && part.slice(0, eq).trim() === name) return part.slice(eq + 1).trim() || null;
+    if (eq <= 0 || part.slice(0, eq).trim() !== name) continue;
+    const value = part.slice(eq + 1).trim();
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(value);
+    } catch {
+      continue;
+    }
+    if (decoded.startsWith(`${token}.`)) return value;
   }
   return null;
 }
 
-/** A Set-Cookie line for `value` that lasts until `expiresAt`, or null when there is nothing to renew. */
-export function renewedCookie(cookie: CookieShape, header: string | undefined, expiresAt: Date, now = Date.now()): string | null {
-  const value = cookieValue(header, cookie.name);
+/** A Set-Cookie line for the session's cookie that lasts until the session ends, or null when there is nothing to renew. */
+export function renewedCookie(cookie: CookieShape, header: string | undefined, session: { token: string; expiresAt: Date }, now = Date.now()): string | null {
+  const value = cookieValue(header, cookie.name, session.token);
+  const expiresAt = session.expiresAt;
   const maxAge = Math.floor((expiresAt.getTime() - now) / 1000);
   if (!value || maxAge <= 0) return null;
   const a = cookie.attributes;
@@ -44,7 +57,7 @@ export function renewedCookie(cookie: CookieShape, header: string | undefined, e
 }
 
 /** Adds the renewed session cookie to the response, when the request carried one. */
-export function renewSessionCookie(res: Response, cookie: CookieShape, header: string | undefined, expiresAt: Date | string): void {
-  const line = renewedCookie(cookie, header, new Date(expiresAt));
+export function renewSessionCookie(res: Response, cookie: CookieShape, header: string | undefined, session: { token: string; expiresAt: Date | string }): void {
+  const line = renewedCookie(cookie, header, { token: session.token, expiresAt: new Date(session.expiresAt) });
   if (line) res.append('Set-Cookie', line);
 }
