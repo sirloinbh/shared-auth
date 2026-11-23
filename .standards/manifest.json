@@ -1,11 +1,11 @@
 {
-  "centralSha": "138e626f986bed08c4880c789667b741702dd95c",
+  "centralSha": "ecf825fb15cb0a03c924f7f1a20a1b7754fe0f73",
   "profile": "service",
   "project": null,
   "files": {
     ".claude/hooks/block-forbidden-commands.mjs": {
       "mode": "full",
-      "sha256": "f2209c4d1d703155fa794ea9f5b6be13351227c074f77ff16943adebdd1195ec",
+      "sha256": "790b43ff72a29e9c9c47f29ddae893a93ab406613918f4833290cb8d1d599288",
       "source": "templates/common/.claude/hooks/block-forbidden-commands.mjs"
     },
     ".claude/hooks/block-package-installs.mjs": {
@@ -130,7 +130,7 @@
     },
     ".standards/check.mjs": {
       "mode": "full",
-      "sha256": "61108495fe719aafbdf1abd5756e291a25546107bbe7826787a34123b0501243",
+      "sha256": "9189de77515827bb3fe6e4875c0808d9a3d58e87d134659058498aff7e8f4cd6",
       "source": "scripts/standards-check.mjs"
     },
     ".standards/ioc-scan.mjs": {
@@ -249,7 +249,7 @@
     },
     "deploy/notify.sh": {
       "mode": "full",
-      "sha256": "9a1c10ca9c4dcb839a746f7fd38d2f435aeb96d1deadf4a904f8e1fc11717a66",
+      "sha256": "6a1077cb061f837c8a2bd17803893bc2d7f94828d7b9272211ffc8424c419c68",
       "source": "templates/deploy/deploy/notify.sh.tmpl"
     },
     "deploy/remote-deploy.sh": {
@@ -264,7 +264,7 @@
     },
     "deploy/report.sh": {
       "mode": "full",
-      "sha256": "a4b644d6fac34b07d3c2b81cef9f088d200c177c6897dd7399f85018d0c412cd",
+      "sha256": "715926c34d8b8419b61b846d5e13313c10bc7e2ea6494006e010257d127d73ca",
       "source": "templates/deploy/deploy/report.sh.tmpl"
     },
     "deploy/report.timer": {
