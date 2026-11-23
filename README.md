@@ -39,6 +39,26 @@ Better Auth's rate limit, set in `RATE_LIMIT` in `backend/src/auth.ts` (#37). It
 
 The client IP comes from `X-Real-IP`, which the server's nginx sets to the address it accepted the connection from (project-standards `scripts/lib/proxy.mjs`), replacing any value the client sent. `X-Forwarded-For` is not used, because nginx appends to what the client sent and its first entry can be forged. If the proxy config stops sending `X-Real-IP`, browser requests lose their per-IP count, so keep the two in step.
 
+## Sign-in records
+
+Every sign-in outcome writes one JSON line to the `api` logs (#33, `backend/src/signin-log.ts`), in the request log shape of project-standards `docs/logging.md`:
+
+```json
+{"time":"2026-11-23T03:00:00.000Z","level":"info","event":"sign_in","outcome":"success","provider":"github","userId":"qBcm…","ip":"203.0.113.7","userAgent":"Mozilla/5.0 …"}
+{"time":"2026-11-23T03:01:00.000Z","level":"warn","event":"sign_in","outcome":"refused_not_allowed","provider":"google","email":"s***@example.com","ip":"198.51.100.4","userAgent":"Mozilla/5.0 …"}
+```
+
+| Field | Meaning |
+|---|---|
+| `level` | `info` for a success, `warn` for a refusal (so the daily report's error count ignores refusals) |
+| `outcome` | `success`; `refused_not_allowed` (the email is not in `ALLOWED_EMAILS`, at first sign-in or after it was removed); `refused_second_user` (an allowed email that is not the owner; link it on `/account` instead) |
+| `provider` | `github` or `google` (`unknown` outside an OAuth callback) |
+| `userId` | The owner's user id, when the user exists |
+| `email` | Only for an account refused before a user existed, masked to the first letter and the domain (`s***@example.com`) |
+| `ip`, `userAgent` | The client address as Better Auth reads it for the session row, and the user agent (cut to 300 characters) |
+
+No token, cookie, or full email is logged. To list them on the server: `docker compose logs api | grep '"event":"sign_in"'`.
+
 ## Registry values
 
 Slot 10 in `sirloinbh/project-standards` `registry/projects.json` (`sharedServices`): web `8110` (published on `127.0.0.1`, forwarded by the server proxy), API `3110` inside the container, DB `15410` (local only).

@@ -17,11 +17,16 @@ export function isAllowedEmail(email: string | null | undefined, allowed: string
  * Decides whether a new user may be created. There is one owner: the first allowed sign-in creates
  * that user, and the other provider is linked from /account instead of creating a second user.
  */
-export function newUserProblem(email: string | null | undefined, allowed: string[], existingUsers: number): string | null {
-  if (!isAllowedEmail(email, allowed)) return 'This account is not allowed to sign in.';
-  if (existingUsers > 0) return 'Sign in with the account you used first, then link this one on the account page.';
+export function newUserProblem(email: string | null | undefined, allowed: string[], existingUsers: number): NewUserProblem | null {
+  if (!isAllowedEmail(email, allowed)) return { reason: 'not_allowed', message: NOT_ALLOWED };
+  if (existingUsers > 0) return { reason: 'second_user', message: 'Sign in with the account you used first, then link this one on the account page.' };
   return null;
 }
+
+export const NOT_ALLOWED = 'This account is not allowed to sign in.';
+
+/** Why a new user was refused: not in ALLOWED_EMAILS, or allowed but not the first (the one owner). */
+export type NewUserProblem = { reason: 'not_allowed' | 'second_user'; message: string };
 
 /** Returns returnTo when it is this service or an app under the root domain over HTTPS, otherwise the fallback. */
 export function safeReturnTo(returnTo: string | undefined, rootDomain: string, fallback: string): string {
