@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import test from 'node:test';
 import { memoryAdapter } from 'better-auth/adapters/memory';
-import { createApp } from '../src/app.js';
+import { CONTENT_SECURITY_POLICY, createApp } from '../src/app.js';
 import { type AuthConfig, createAuth, RATE_LIMIT, revokeRemovedUsers, SESSION } from '../src/auth.js';
 
 const config: AuthConfig = {
@@ -208,5 +208,28 @@ test('a refused sign-in comes back to the sign-in page with the same returnTo', 
       body: JSON.stringify({ provider: 'github', callbackURL: returnTo, errorCallbackURL }),
     });
     assert.equal(r.status, 200);
+  });
+});
+
+test('every response carries the strict Content-Security-Policy, and the assets are served', async () => {
+  assert.equal(
+    CONTENT_SECURITY_POLICY,
+    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'",
+  );
+  await serve(setup().app, async (base) => {
+    for (const path of ['/sign-in', '/sign-out', '/account', '/assets/pages.css', '/assets/pages.js', '/assets/passkey.js', '/assets/webauthn.js', '/api/health', '/api/auth/get-session']) {
+      const r = await fetch(`${base}${path}`, { redirect: 'manual' });
+      assert.equal(r.headers.get('content-security-policy'), CONTENT_SECURITY_POLICY, path);
+    }
+    const css = await fetch(`${base}/assets/pages.css`);
+    assert.match(css.headers.get('content-type') ?? '', /^text\/css/);
+    assert.equal(css.headers.get('cache-control'), 'no-cache');
+    assert.match(await css.text(), /--background: oklch\(1 0 0\)/);
+    const js = await fetch(`${base}/assets/pages.js`);
+    assert.match(js.headers.get('content-type') ?? '', /^(text|application)\/javascript/);
+    assert.match(await js.text(), /button\[data-endpoint\]/);
+    const passkey = await fetch(`${base}/assets/passkey.js`);
+    assert.match(passkey.headers.get('content-type') ?? '', /^(text|application)\/javascript/);
+    assert.match(await passkey.text(), /SimpleWebAuthnBrowser\.startRegistration/);
   });
 });

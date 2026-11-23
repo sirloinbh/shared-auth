@@ -1,6 +1,6 @@
 // The three pages people see: sign in, account (link the other provider, manage passkeys), sign out.
-// Plain HTML with a few lines of script; the buttons call Better Auth's own endpoints.
-import { STYLES } from './styles.js';
+// Plain HTML; the stylesheet and scripts are files of their own (/assets/pages.css, /assets/pages.js,
+// /assets/passkey.js), so the Content-Security-Policy allows no inline code (#38). The buttons call Better Auth's endpoints.
 
 // Provider marks as inline SVG, unaltered: the GitHub mark (Octicons mark-github) in the text color,
 // and the four-color Google "G" (Google sign-in branding guidelines).
@@ -14,8 +14,8 @@ const PROVIDERS = [
 
 const escape = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-/** The centered card every page uses: the service name above, the page content and an error line, and a note below. */
-function layout(title: string, card: string, note: string, error = '', scripts = SCRIPT): string {
+/** The centered card every page uses: the service name above, the page content and an error line, a note below, and the scripts it loads. */
+function layout(title: string, card: string, note: string, error = '', scripts: string[] = ['/assets/pages.js']): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -23,7 +23,7 @@ function layout(title: string, card: string, note: string, error = '', scripts =
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="referrer" content="same-origin" />
 <title>${escape(title)} · daysofme</title>
-<style>${STYLES}</style>
+<link rel="stylesheet" href="/assets/pages.css" />
 </head>
 <body>
 <main>
@@ -34,14 +34,13 @@ ${card}
 </section>
 <p class="note">${note}</p>
 </main>
-${scripts}
+${scripts.map((src) => `<script src="${src}"></script>`).join('\n')}
 </body>
 </html>`;
 }
 
-// Posts JSON to a Better Auth endpoint and follows the provider URL it returns.
-const SCRIPT = `<script>
-for (const b of document.querySelectorAll('button[data-endpoint]')) {
+// /assets/pages.js: posts JSON to the button's endpoint and follows the provider URL it returns.
+export const SCRIPT = `for (const b of document.querySelectorAll('button[data-endpoint]')) {
   b.addEventListener('click', async () => {
     b.disabled = true;
     const body = JSON.parse(b.dataset.body);
@@ -52,13 +51,12 @@ for (const b of document.querySelectorAll('button[data-endpoint]')) {
     else { b.disabled = false; document.querySelector('#error').textContent = data.message || 'Something went wrong. Try again.'; }
   });
 }
-</script>`;
+`;
 
 // Passkey buttons (#54): fetch the WebAuthn options, let the browser create or use the passkey
-// (@simplewebauthn/browser, served at /assets/webauthn.js), then send the result back to Better Auth.
-const PASSKEY_SCRIPT = `<script src="/assets/webauthn.js"></script>
-<script>
-const passkeyCall = async (path, init) => {
+// (@simplewebauthn/browser, served at /assets/webauthn.js and loaded first), then send the result back to Better Auth.
+// Served as /assets/passkey.js.
+export const PASSKEY_SCRIPT = `const passkeyCall = async (path, init) => {
   const r = await fetch('/api/auth/passkey/' + path, { credentials: 'same-origin', ...init });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.message || 'Something went wrong. Try again.');
@@ -82,7 +80,10 @@ for (const b of document.querySelectorAll('button[data-passkey]')) {
     }
   });
 }
-</script>`;
+`;
+
+/** The scripts of a page with passkey buttons; webauthn.js defines SimpleWebAuthnBrowser for passkey.js. */
+const PASSKEY_PAGE_SCRIPTS = ['/assets/pages.js', '/assets/webauthn.js', '/assets/passkey.js'];
 
 /** A button that runs the passkey flow, then goes to `done`. */
 const passkeyButton = (flow: 'register' | 'sign-in', done: string, content: string, kind: 'outline' | 'small' = 'outline') =>
@@ -106,7 +107,7 @@ ${passkeyButton('sign-in', returnTo, '<span>Sign in with a passkey</span>')}
 </div>`,
     `After you sign in, you return to ${escape(appName)}. One sign-in works for every daysofme app.`,
     error,
-    SCRIPT + PASSKEY_SCRIPT,
+    PASSKEY_PAGE_SCRIPTS,
   );
 }
 
@@ -185,7 +186,7 @@ ${sessions.length ? sessionList(sessions) : ''}
 ${button('/api/auth/sign-out', {}, 'Sign out', { done: '/sign-in' })}`,
     'This account signs you in to every daysofme app.',
     error,
-    SCRIPT + PASSKEY_SCRIPT,
+    PASSKEY_PAGE_SCRIPTS,
   );
 }
 
