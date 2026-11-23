@@ -2,7 +2,7 @@
 // (ADR-0015 in sirloinbh/project-standards).
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { APIError } from 'better-auth/api';
-import { newUserProblem } from './rules.js';
+import { isAllowedEmail, newUserProblem } from './rules.js';
 
 export type AuthConfig = {
   /** https://auth.<root domain> */
@@ -16,7 +16,15 @@ export type AuthConfig = {
   production: boolean;
 };
 
-export function authOptions(config: AuthConfig, database: BetterAuthOptions['database'], countUsers: () => Promise<number>): BetterAuthOptions {
+/** Looks up a user's email by user id; null when the user does not exist. */
+export type FindUserEmail = (userId: string) => Promise<string | null>;
+
+export function authOptions(
+  config: AuthConfig,
+  database: BetterAuthOptions['database'],
+  countUsers: () => Promise<number>,
+  findUserEmail: FindUserEmail,
+): BetterAuthOptions {
   return {
     appName: 'daysofme sign-in',
     baseURL: config.baseURL,
@@ -41,6 +49,16 @@ export function authOptions(config: AuthConfig, database: BetterAuthOptions['dat
           },
         },
       },
+      session: {
+        create: {
+          // ALLOWED_EMAILS is checked again at every sign-in, so removing an email locks that user out.
+          before: async (session) => {
+            if (!isAllowedEmail(await findUserEmail(session.userId), config.allowedEmails)) {
+              throw new APIError('FORBIDDEN', { message: 'This account is not allowed to sign in.' });
+            }
+          },
+        },
+      },
     },
     // Callbacks may return to this service or any app under the root domain.
     trustedOrigins: [config.baseURL, `https://*.${config.rootDomain}`],
@@ -55,7 +73,21 @@ export function authOptions(config: AuthConfig, database: BetterAuthOptions['dat
 }
 
 export function createAuth(config: AuthConfig, database: BetterAuthOptions['database'], countUsers: () => Promise<number>) {
-  return betterAuth(authOptions(config, database, countUsers));
+  const findUserEmail: FindUserEmail = async (userId) => (await (await auth.$context).internalAdapter.findUserById(userId))?.email ?? null;
+  const auth = betterAuth(authOptions(config, database, countUsers, findUserEmail));
+  return auth;
+}
+
+/**
+ * Deletes the sessions of users whose email is no longer in ALLOWED_EMAILS. Run on start: changing
+ * ALLOWED_EMAILS needs a restart, so a removed email loses its open sessions with that restart.
+ * Returns how many users lost their sessions.
+ */
+export async function revokeRemovedUsers(auth: Auth, allowedEmails: string[]): Promise<number> {
+  const { internalAdapter } = await auth.$context;
+  const removed = (await internalAdapter.listUsers()).filter((u) => !isAllowedEmail(u.email, allowedEmails));
+  for (const user of removed) await internalAdapter.deleteUserSessions(user.id);
+  return removed.length;
 }
 
 export type Auth = ReturnType<typeof createAuth>;
