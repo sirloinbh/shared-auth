@@ -1,6 +1,6 @@
 // The three pages people see: sign in, account (link the other provider), sign out.
-// Plain HTML with a few lines of script; the buttons call Better Auth's own endpoints.
-import { STYLES } from './styles.js';
+// Plain HTML; the stylesheet and the few lines of script are files of their own (/assets/pages.css and
+// /assets/pages.js), so the Content-Security-Policy allows no inline code (#38). The buttons call Better Auth's endpoints.
 
 // Provider marks as inline SVG, unaltered: the GitHub mark (Octicons mark-github) in the text color,
 // and the four-color Google "G" (Google sign-in branding guidelines).
@@ -23,7 +23,7 @@ function layout(title: string, card: string, note: string, error = ''): string {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="referrer" content="same-origin" />
 <title>${escape(title)} · daysofme</title>
-<style>${STYLES}</style>
+<link rel="stylesheet" href="/assets/pages.css" />
 </head>
 <body>
 <main>
@@ -34,14 +34,13 @@ ${card}
 </section>
 <p class="note">${note}</p>
 </main>
-${SCRIPT}
+<script src="/assets/pages.js"></script>
 </body>
 </html>`;
 }
 
-// Posts JSON to a Better Auth endpoint and follows the provider URL it returns.
-const SCRIPT = `<script>
-for (const b of document.querySelectorAll('button[data-endpoint]')) {
+// /assets/pages.js: posts JSON to the button's endpoint and follows the provider URL it returns.
+export const SCRIPT = `for (const b of document.querySelectorAll('button[data-endpoint]')) {
   b.addEventListener('click', async () => {
     b.disabled = true;
     const body = JSON.parse(b.dataset.body);
@@ -52,7 +51,7 @@ for (const b of document.querySelectorAll('button[data-endpoint]')) {
     else { b.disabled = false; document.querySelector('#error').textContent = data.message || 'Something went wrong. Try again.'; }
   });
 }
-</script>`;
+`;
 
 /** A button that posts `body` to `endpoint`. `content` is trusted HTML (marks and escaped labels). */
 const button = (endpoint: string, body: object, content: string, { done, kind = 'outline' }: { done?: string; kind?: 'outline' | 'primary' | 'small' | 'link' } = {}) =>

@@ -16,11 +16,22 @@ One sign-in for every daysofme app ([ADR-0015](https://github.com/sirloinbh/proj
 | `POST /account/sessions/revoke` | Used by the session "Sign out" buttons: `{ "id": "<session id>" }`, JSON only, from this service's origin. Ends one other session of the signed-in owner, so session tokens never reach the page |
 | `/sign-out?returnTo=<url>` | Ends the session for every app |
 | `/api/auth/*` | Better Auth (`get-session`, `sign-in/social`, `callback/github`, `callback/google`, `link-social`, `sign-out`, ...) |
+| `/assets/pages.css`, `/assets/pages.js` | The pages' stylesheet and button script, served as files so the pages have no inline code (`Cache-Control: no-cache`) |
 | `/api/health` | 200 when the database answers. The `api` container's Compose healthcheck calls it, so `docker compose ps` shows `healthy` and `docker compose up -d --wait` waits for it |
 
 ## Page look
 
 The pages use the shared design tokens of the daysofme apps, `@sirloinbh/design-tokens` **1.1.0** (sirloinbh/project-standards `packages/design-tokens/tokens.css`, ADR-0008): the same neutral colors, type sizes, corner radius, and spacing. This service has no frontend build, so `backend/src/styles.ts` holds a copy of the token values it uses, with `TOKENS_VERSION` naming the version. When the tokens change, copy the new values from `tokens.css` and raise `TOKENS_VERSION`. Every page is one centered card under the service name; the provider buttons carry the unaltered GitHub mark and Google "G" as inline SVG. Dark mode follows the system setting (`prefers-color-scheme`). The font stack starts with Pretendard, but the font files are not served here, so the pages show Pretendard only where it is installed and the system font otherwise.
+
+## Security headers
+
+Every response carries `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`, `Cache-Control: no-store` (the assets: `no-cache`), and this Content-Security-Policy (`CONTENT_SECURITY_POLICY` in `backend/src/app.ts`, #38):
+
+```text
+default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'
+```
+
+Only this service's own files and endpoints load. A page must not add inline `<script>`, `<style>`, `style=` or `on*=` attributes; put styles in `backend/src/styles.ts` and script in `SCRIPT` in `backend/src/pages.ts`. After a button's request, the browser navigates to GitHub, Google, or an app, which the policy does not limit.
 
 ## Sessions
 
