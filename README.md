@@ -41,7 +41,7 @@ Set in `SESSION` in `backend/src/auth.ts` (#39):
 
 | Setting | Value | What it means |
 |---|---|---|
-| `expiresIn` | 30 days | The session cookie's lifetime, set once at sign-in. Apps check the session server-to-server and never pass a refreshed cookie back to the browser, so the owner signs in again after 30 days |
+| `expiresIn` | 30 days | The session's lifetime. Apps check the session server-to-server, which moves its database expiry forward but never passes a refreshed cookie back to the browser. So opening `/account`, or `/sign-in` while signed in, sends the browser its cookie again with a lifetime that ends when the database session ends (#48). The owner signs in again only after 30 days without using any app, or after 30 days without opening an auth page |
 | `updateAge` | 1 day | A session used after a day gets its database expiry moved forward |
 | `cookieCache` | off | The cache cookie would save database reads only for its `maxAge` after sign-in, and a signed-out or removed session would stay usable that long. `@sirloinbh/auth-client` already caches each successful check for 30 seconds, so a sign-out or a removed email reaches every app within 30 seconds |
 
