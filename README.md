@@ -17,6 +17,10 @@ One sign-in for every daysofme app ([ADR-0015](https://github.com/sirloinbh/proj
 | `/api/auth/*` | Better Auth (`get-session`, `sign-in/social`, `callback/github`, `callback/google`, `link-social`, `sign-out`, ...) |
 | `/api/health` | 200 when the database answers. The `api` container's Compose healthcheck calls it, so `docker compose ps` shows `healthy` and `docker compose up -d --wait` waits for it |
 
+## Page look
+
+The pages use the shared design tokens of the daysofme apps, `@sirloinbh/design-tokens` **1.1.0** (sirloinbh/project-standards `packages/design-tokens/tokens.css`, ADR-0008): the same neutral colors, type sizes, corner radius, and spacing. This service has no frontend build, so `backend/src/styles.ts` holds a copy of the token values it uses, with `TOKENS_VERSION` naming the version. When the tokens change, copy the new values from `tokens.css` and raise `TOKENS_VERSION`. Dark mode follows the system setting (`prefers-color-scheme`). The font stack starts with Pretendard, but the font files are not served here, so the pages show Pretendard only where it is installed and the system font otherwise.
+
 ## Sessions
 
 Set in `SESSION` in `backend/src/auth.ts` (#39):

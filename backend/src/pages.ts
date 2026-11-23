@@ -1,5 +1,6 @@
 // The three pages people see: sign in, account (link the other provider), sign out.
 // Plain HTML with a few lines of script; the forms call Better Auth's own endpoints.
+import { STYLES } from './styles.js';
 
 const PROVIDERS = [
   { id: 'github', label: 'GitHub' },
@@ -16,16 +17,7 @@ function layout(title: string, body: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="referrer" content="same-origin" />
 <title>${escape(title)}</title>
-<style>
-  :root { color-scheme: light dark; --bg: #ffffff; --fg: #0a0a0a; --muted: #737373; --line: #e5e5e5; }
-  @media (prefers-color-scheme: dark) { :root { --bg: #0a0a0a; --fg: #fafafa; --muted: #a3a3a3; --line: #262626; } }
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
-  main { width: min(360px, calc(100% - 32px)); display: grid; gap: 12px; }
-  h1 { font-size: 20px; margin: 0 0 4px; }
-  p { margin: 0; color: var(--muted); }
-  button { font: inherit; padding: 12px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: inherit; cursor: pointer; }
-  .error { color: #dc2626; }
-</style>
+<style>${STYLES}</style>
 </head>
 <body><main>${body}</main></body>
 </html>`;
