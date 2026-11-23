@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import type { AddressInfo } from 'node:net';
 import test from 'node:test';
 import { memoryAdapter } from 'better-auth/adapters/memory';
 import { CONTENT_SECURITY_POLICY, createApp } from '../src/app.js';
 import { type AuthConfig, createAuth, RATE_LIMIT, revokeRemovedUsers, SESSION } from '../src/auth.js';
+import { listen } from './listen.js';
 
 const config: AuthConfig = {
   baseURL: 'http://localhost:3110',
@@ -22,10 +22,9 @@ function setup({ ping = async () => {}, production = false } = {}) {
 }
 
 async function serve(app: ReturnType<typeof setup>['app'], run: (base: string) => Promise<void>) {
-  const server = app.listen(0);
-  await new Promise((r) => server.once('listening', r));
+  const { server, base } = await listen(app);
   try {
-    await run(`http://127.0.0.1:${(server.address() as AddressInfo).port}`);
+    await run(base);
   } finally {
     server.close();
   }

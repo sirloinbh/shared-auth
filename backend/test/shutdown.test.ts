@@ -1,15 +1,7 @@
 import assert from 'node:assert/strict';
-import { createServer } from 'node:http';
-import type { AddressInfo } from 'node:net';
 import test from 'node:test';
 import { closeGracefully } from '../src/shutdown.js';
-
-async function listen(handler: Parameters<typeof createServer>[1]) {
-  const server = createServer(handler);
-  server.listen(0);
-  await new Promise((r) => server.once('listening', r));
-  return { server, base: `http://127.0.0.1:${(server.address() as AddressInfo).port}` };
-}
+import { listen } from './listen.js';
 
 test('closes the server after an idle keep-alive connection and then the pool', async () => {
   const { server, base } = await listen((_req, res) => res.end('ok'));

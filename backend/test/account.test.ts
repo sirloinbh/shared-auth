@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
-import type { AddressInfo } from 'node:net';
 import test from 'node:test';
 import { memoryAdapter } from 'better-auth/adapters/memory';
 import { createApp } from '../src/app.js';
 import { type Auth, type AuthConfig, createAuth } from '../src/auth.js';
 import { describeDevice } from '../src/devices.js';
 import { BASE_URL, sessionCookie, signInWithGitHub } from './github.js';
+import { listen } from './listen.js';
 
 const config: AuthConfig = {
   baseURL: BASE_URL,
@@ -28,10 +28,8 @@ type Session = { id: string; token: string; userAgent: string; createdAt: Date }
 async function withDevices(devices: (typeof LAPTOP)[], run: (base: string, cookies: string[], sessions: Session[], auth: Auth) => Promise<void>) {
   const db: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [], passkey: [] };
   const auth = createAuth(config, memoryAdapter(db), async () => db.user!.length, () => {});
-  const server = createApp(auth, { baseURL: config.baseURL, rootDomain: config.rootDomain, ping: async () => {} }).listen(0);
-  await new Promise((r) => server.once('listening', r));
+  const { server, base } = await listen(createApp(auth, { baseURL: config.baseURL, rootDomain: config.rootDomain, ping: async () => {} }));
   try {
-    const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
     const cookies: string[] = [];
     for (const device of devices) cookies.push(sessionCookie(await signInWithGitHub(base, OWNER, device)));
     await run(base, cookies, db.session as Session[], auth);
