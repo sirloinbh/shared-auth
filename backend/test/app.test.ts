@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import test from 'node:test';
 import { memoryAdapter } from 'better-auth/adapters/memory';
 import { createApp } from '../src/app.js';
-import { type AuthConfig, createAuth, revokeRemovedUsers } from '../src/auth.js';
+import { type AuthConfig, createAuth, revokeRemovedUsers, SESSION } from '../src/auth.js';
 
 const config: AuthConfig = {
   baseURL: 'http://localhost:3110',
@@ -127,4 +127,20 @@ test('on start, sessions of users whose email was removed are deleted', async ()
   assert.equal(await revokeRemovedUsers(removed, ['second@example.net']), 1);
   assert.equal(db.session!.length, 0);
   assert.equal(db.user!.length, 1);
+});
+
+test('sessions last 30 days, move forward daily, and are never served from a cookie cache', async () => {
+  const { auth } = setup();
+  const ctx = await auth.$context;
+  assert.equal(SESSION.expiresIn, 30 * 24 * 60 * 60);
+  assert.equal(ctx.sessionConfig.expiresIn, SESSION.expiresIn);
+  assert.equal(ctx.sessionConfig.updateAge, 24 * 60 * 60);
+  assert.equal(ctx.options.session?.cookieCache?.enabled, false);
+
+  const owner = await ctx.internalAdapter.createUser({ email: 'owner@example.com', name: 'Owner', emailVerified: true });
+  const before = Date.now();
+  const session = await ctx.internalAdapter.createSession(owner.id);
+  const lifetime = (new Date(session.expiresAt).getTime() - before) / 1000;
+  assert.ok(Math.abs(lifetime - SESSION.expiresIn) < 60, `lifetime ${lifetime}s`);
+  assert.equal(ctx.authCookies.sessionToken.attributes.maxAge, SESSION.expiresIn);
 });

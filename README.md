@@ -17,6 +17,16 @@ One sign-in for every daysofme app ([ADR-0015](https://github.com/sirloinbh/proj
 | `/api/auth/*` | Better Auth (`get-session`, `sign-in/social`, `callback/github`, `callback/google`, `link-social`, `sign-out`, ...) |
 | `/api/health` | 200 when the database answers. The `api` container's Compose healthcheck calls it, so `docker compose ps` shows `healthy` and `docker compose up -d --wait` waits for it |
 
+## Sessions
+
+Set in `SESSION` in `backend/src/auth.ts` (#39):
+
+| Setting | Value | What it means |
+|---|---|---|
+| `expiresIn` | 30 days | The session cookie's lifetime, set once at sign-in. Apps check the session server-to-server and never pass a refreshed cookie back to the browser, so the owner signs in again after 30 days |
+| `updateAge` | 1 day | A session used after a day gets its database expiry moved forward |
+| `cookieCache` | off | The cache cookie would save database reads only for its `maxAge` after sign-in, and a signed-out or removed session would stay usable that long. `@sirloinbh/auth-client` already caches each successful check for 30 seconds, so a sign-out or a removed email reaches every app within 30 seconds |
+
 ## Registry values
 
 Slot 10 in `sirloinbh/project-standards` `registry/projects.json` (`sharedServices`): web `8110` (published on `127.0.0.1`, forwarded by the server proxy), API `3110` inside the container, DB `15410` (local only).
