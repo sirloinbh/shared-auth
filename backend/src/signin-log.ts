@@ -13,6 +13,8 @@ export type SignInEvent = {
   email?: string;
   ip: string | null;
   userAgent: string | null;
+  /** The request's ID from requestLog (#64), the same as on its request line. */
+  requestId?: string;
 };
 
 export type SignInLog = (event: SignInEvent) => void;
@@ -27,11 +29,12 @@ export function maskEmail(email: string | null | undefined): string | undefined 
 
 /** The log line for one event. A success is "info"; a refusal is "warn", so the daily error count ignores it. */
 export function signInLine(event: SignInEvent, now = new Date()): string {
-  const { outcome, provider, userId, email, ip, userAgent } = event;
+  const { outcome, provider, userId, email, ip, userAgent, requestId } = event;
   return JSON.stringify({
     time: now.toISOString(),
     level: outcome === 'success' ? 'info' : 'warn',
     event: 'sign_in',
+    ...(requestId ? { requestId } : {}),
     outcome,
     provider,
     ...(userId ? { userId } : {}),

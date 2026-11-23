@@ -66,6 +66,23 @@ Better Auth's rate limit, set in `RATE_LIMIT` in `backend/src/auth.ts` (#37). It
 
 The client IP comes from `X-Real-IP`, which the server's nginx sets to the address it accepted the connection from (project-standards `scripts/lib/proxy.mjs`), replacing any value the client sent. `X-Forwarded-For` is not used, because nginx appends to what the client sent and its first entry can be forged. If the proxy config stops sending `X-Real-IP`, browser requests lose their per-IP count, so keep the two in step.
 
+## Request logs
+
+Every request except `/api/health` writes one JSON line when it ends (#64, `backend/src/request-log.ts`), the same shape as the apps' managed `requestLog` (project-standards `docs/logging.md`):
+
+```json
+{"time":"2026-11-23T03:00:00.000Z","level":"info","requestId":"5f0c…","method":"GET","path":"/api/auth/get-session","status":200,"ms":4}
+```
+
+| Field | Meaning |
+|---|---|
+| `level` | `info` below 400, `warn` for 4xx (stdout), `error` for 5xx (stderr), so the daily report's error count lists 5xx lines with their `requestId`, `status`, and `path` |
+| `requestId` | An incoming `X-Request-Id` that matches `^[\w.-]{1,128}$` is kept (apps send theirs through `@sirloinbh/auth-client`, project-standards#1082); anything else is replaced with a new UUID. It is sent back in the `X-Request-Id` response header and is also on the `sign_in` line of the same request |
+| `path` | Without the query string, so the OAuth `code` and `state` and `returnTo` stay out of the log |
+| `status`, `ms` | `499` with `"aborted":true` when the client went away first |
+
+The line holds no body, header, or cookie. `/api/health` is not logged, because the Compose healthcheck calls it every 5 seconds. To follow an app request: `docker compose logs api | grep '"requestId":"5f0c'`.
+
 ## Sign-in records
 
 Every sign-in outcome writes one JSON line to the `api` logs (#33, `backend/src/signin-log.ts`), in the request log shape of project-standards `docs/logging.md`:
@@ -82,6 +99,7 @@ Every sign-in outcome writes one JSON line to the `api` logs (#33, `backend/src/
 | `provider` | `github` or `google` (`unknown` outside an OAuth callback) |
 | `userId` | The owner's user id, when the user exists |
 | `email` | Only for an account refused before a user existed, masked to the first letter and the domain (`s***@example.com`) |
+| `requestId` | The ID of the request that signed in, the same as on its request line (#64) |
 | `ip`, `userAgent` | The client address as Better Auth reads it for the session row, and the user agent (cut to 300 characters) |
 
 No token, cookie, or full email is logged. To list them on the server: `docker compose logs api | grep '"event":"sign_in"'`.

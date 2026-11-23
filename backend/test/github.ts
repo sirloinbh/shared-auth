@@ -18,7 +18,7 @@ export function fakeGitHub(account: { id: number; email: string }) {
 }
 
 /** Starts a GitHub sign-in and follows the callback as GitHub would send the browser back. */
-export async function signInWithGitHub(base: string, account: { id: number; email: string }, client: { ip: string; userAgent: string }) {
+export async function signInWithGitHub(base: string, account: { id: number; email: string }, client: { ip: string; userAgent: string; requestId?: string }) {
   const restore = fakeGitHub(account);
   try {
     // Like a browser behind nginx, both requests carry the client's address (rate limits count per IP).
@@ -30,7 +30,9 @@ export async function signInWithGitHub(base: string, account: { id: number; emai
     });
     const state = new URL(((await start.json()) as { url: string }).url).searchParams.get('state')!;
     const cookie = start.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
-    return await fetch(`${base}/api/auth/callback/github?code=fake-code&state=${state}`, { headers: { cookie, ...via }, redirect: 'manual' });
+    // The callback is the request that signs in; an app-style X-Request-Id on it should reach the sign_in line (#64).
+    const id = client.requestId ? { 'x-request-id': client.requestId } : {};
+    return await fetch(`${base}/api/auth/callback/github?code=fake-code&state=${state}`, { headers: { cookie, ...via, ...id }, redirect: 'manual' });
   } finally {
     restore();
   }

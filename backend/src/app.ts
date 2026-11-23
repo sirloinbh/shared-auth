@@ -7,6 +7,7 @@ import { returnName } from './apps.js';
 import type { Auth } from './auth.js';
 import { describeDevice } from './devices.js';
 import { accountPage, PASSKEY_SCRIPT, type PasskeyRow, SCRIPT, type SessionRow, signInPage, signOutPage } from './pages.js';
+import { requestLog } from './request-log.js';
 import { renewSessionCookie } from './session-cookie.js';
 import { linkErrorMessage, refusalMessage, safeReturnTo } from './rules.js';
 import { STYLES } from './styles.js';
@@ -42,9 +43,8 @@ export function createApp(auth: Auth, { baseURL, rootDomain, ping }: AppOptions)
     next();
   });
 
-  // Better Auth reads the raw body itself, so it is mounted before any body parser.
-  app.all('/api/auth/*splat', toNodeHandler(auth));
-
+  // Before the request log: the Compose healthcheck calls it every 5 seconds (docs/logging.md allows
+  // only the health check first).
   app.get('/api/health', async (_req, res) => {
     try {
       await ping();
@@ -53,6 +53,12 @@ export function createApp(auth: Auth, { baseURL, rootDomain, ping }: AppOptions)
       res.status(503).json({ status: 'db_unavailable' });
     }
   });
+
+  // One line per request with its ID (#64), before Better Auth and every page.
+  app.use(requestLog);
+
+  // Better Auth reads the raw body itself, so it is mounted before any body parser.
+  app.all('/api/auth/*splat', toNodeHandler(auth));
 
 
   const account = `${baseURL}/account`;
