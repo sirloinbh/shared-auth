@@ -11,11 +11,11 @@ Reproduced: 1 of 20 local `npm test` runs failed, with `fetch failed`, cause `Er
 ## Changes
 
 - `backend/test/listen.ts` (new): `listen(handler)` starts a server on 127.0.0.1 with a random port and tries again while the port is in `FETCH_BLOCKED_PORTS`. The list was checked against Node's own fetch: probing ports 1–11000 gave the same 82 ports.
-- `backend/test/app.test.ts`, `account.test.ts`, `passkey.test.ts`, `signin-log.test.ts`, `shutdown.test.ts`: use `listen()` instead of `listen(0)`.
+- `backend/test/app.test.ts`, `account.test.ts`, `passkey.test.ts`, `signin-log.test.ts`, `shutdown.test.ts`, `session-cookie.test.ts` (from #48, arrived with the rebase): use `listen()` instead of `listen(0)`.
 - `backend/test/listen.test.ts` (new): a sample of listed ports is refused by fetch, neighbors are not, and `listen()` returns a reachable port.
 
 ## Verification
 
 - `npm run typecheck`: passed.
 - Before: 1 of 20 `npm test` runs failed (`bad port`).
-- After: 30 of 30 `npm test` runs passed (59 tests each), then 61 passed with the new helper tests.
+- After: 30 of 30 `npm test` runs passed (59 tests each), then 61 passed with the new helper tests. After rebasing onto `origin/main` (66 tests): 20 of 20 runs passed.
