@@ -16,6 +16,20 @@ export type AuthConfig = {
   production: boolean;
 };
 
+const DAY = 24 * 60 * 60;
+
+/**
+ * Session settings (seconds), written out instead of left to Better Auth's defaults (#39).
+ * - expiresIn: the browser's session cookie is set once at sign-in with this lifetime. Apps check the
+ *   session server-to-server and do not pass refreshed cookies back to the browser, so in practice the
+ *   owner signs in again after this long.
+ * - updateAge: a session used after this long gets its database expiry moved forward.
+ * - cookieCache: off. It would only save database reads for its maxAge after sign-in (the apps never
+ *   hand the refreshed cache cookie to the browser), it would keep a revoked session usable for that
+ *   long, and @sirloinbh/auth-client already caches each successful check for 30 seconds.
+ */
+export const SESSION = { expiresIn: 30 * DAY, updateAge: DAY, cookieCache: { enabled: false } } as const;
+
 /**
  * A refusal from a hook. The OAuth callback redirects to the errorCallbackURL (/sign-in?error=...) only
  * when the error has a code; without one the browser would get a bare 403.
@@ -36,6 +50,7 @@ export function authOptions(
     baseURL: config.baseURL,
     secret: config.secret,
     database,
+    session: { expiresIn: SESSION.expiresIn, updateAge: SESSION.updateAge, cookieCache: { ...SESSION.cookieCache } },
     // Sign-in is only through GitHub or Google; there are no passwords.
     emailAndPassword: { enabled: false },
     socialProviders: {
