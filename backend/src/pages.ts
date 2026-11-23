@@ -60,7 +60,7 @@ const button = (endpoint: string, body: object, content: string, { done, kind = 
 
 export function signInPage({ returnTo, appName, error }: { returnTo: string; appName: string; error?: string }): string {
   const buttons = PROVIDERS.map((p) =>
-    button('/api/auth/sign-in/social', { provider: p.id, callbackURL: returnTo, errorCallbackURL: '/sign-in' }, `${p.mark}<span>Continue with ${escape(p.label)}</span>`),
+    button('/api/auth/sign-in/social', { provider: p.id, callbackURL: returnTo, errorCallbackURL: `/sign-in?returnTo=${encodeURIComponent(returnTo)}` }, `${p.mark}<span>Continue with ${escape(p.label)}</span>`),
   ).join('\n');
   return layout(
     'Sign in',
