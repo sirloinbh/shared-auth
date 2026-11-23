@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import test from 'node:test';
 import { memoryAdapter } from 'better-auth/adapters/memory';
 import { createApp } from '../src/app.js';
-import { type AuthConfig, createAuth } from '../src/auth.js';
+import { type Auth, type AuthConfig, createAuth } from '../src/auth.js';
 import { describeDevice } from '../src/devices.js';
 import { BASE_URL, sessionCookie, signInWithGitHub } from './github.js';
 
@@ -22,10 +22,10 @@ const LAPTOP = { ip: '203.0.113.7', userAgent: 'Mozilla/5.0 (Windows NT 10.0; Wi
 const PHONE = { ip: '198.51.100.20', userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1' };
 const TABLET = { ip: '198.51.100.30', userAgent: 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36' };
 
-type Session = { id: string; token: string; userAgent: string };
+type Session = { id: string; token: string; userAgent: string; createdAt: Date };
 
 /** Signs the owner in from each device and runs `run` with each device's session cookie. */
-async function withDevices(devices: (typeof LAPTOP)[], run: (base: string, cookies: string[], sessions: Session[]) => Promise<void>) {
+async function withDevices(devices: (typeof LAPTOP)[], run: (base: string, cookies: string[], sessions: Session[], auth: Auth) => Promise<void>) {
   const db: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [] };
   const auth = createAuth(config, memoryAdapter(db), async () => db.user!.length, () => {});
   const server = createApp(auth, { baseURL: config.baseURL, rootDomain: config.rootDomain, ping: async () => {} }).listen(0);
@@ -34,7 +34,7 @@ async function withDevices(devices: (typeof LAPTOP)[], run: (base: string, cooki
     const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
     const cookies: string[] = [];
     for (const device of devices) cookies.push(sessionCookie(await signInWithGitHub(base, OWNER, device)));
-    await run(base, cookies, db.session as Session[]);
+    await run(base, cookies, db.session as Session[], auth);
   } finally {
     server.close();
   }
@@ -106,4 +106,66 @@ test('devices are named by browser and system', () => {
   assert.equal(describeDevice('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0'), 'Edge on Windows');
   assert.equal(describeDevice('curl/8.0'), 'Unknown device');
   assert.equal(describeDevice(null), 'Unknown device');
+});
+
+/** Links Google to the owner directly in the database (a real link goes through Google). */
+async function linkGoogle(auth: Auth) {
+  const ctx = await auth.$context;
+  const owner = (await ctx.internalAdapter.listUsers())[0]!;
+  return ctx.internalAdapter.createAccount({ userId: owner.id, providerId: 'google', accountId: 'google-1' });
+}
+
+const accountsOf = async (base: string, cookie: string) =>
+  (await (await fetch(`${base}/api/auth/list-accounts`, { headers: { cookie } })).json()) as { id: string; providerId: string }[];
+
+const unlink = (base: string, cookie: string, accountId: string) =>
+  fetch(`${base}/api/auth/unlink-account`, { method: 'POST', headers: { 'content-type': 'application/json', cookie, origin: BASE_URL }, body: JSON.stringify({ accountId }) });
+
+test('with two providers linked, each has an Unlink button, and unlinking one keeps the other', async () => {
+  await withDevices([LAPTOP], async (base, [laptop], _sessions, auth) => {
+    await linkGoogle(auth);
+    const page = await (await fetch(`${base}/account`, { headers: { cookie: laptop! } })).text();
+    const accounts = await accountsOf(base, laptop!);
+    const google = accounts.find((a) => a.providerId === 'google')!;
+    assert.ok(page.includes(`data-body="{&#34;accountId&#34;:&#34;${google.id}&#34;}"`));
+    assert.match(page, />Unlink GitHub<\/button>/);
+    assert.match(page, />Unlink Google<\/button>/);
+    assert.equal((await unlink(base, laptop!, google.id)).status, 200);
+    assert.deepEqual((await accountsOf(base, laptop!)).map((a) => a.providerId), ['github']);
+  });
+});
+
+test('the last provider has no Unlink button, and unlinking it is refused', async () => {
+  await withDevices([LAPTOP], async (base, [laptop]) => {
+    const page = await (await fetch(`${base}/account`, { headers: { cookie: laptop! } })).text();
+    assert.doesNotMatch(page, /Unlink/);
+    const [github] = await accountsOf(base, laptop!);
+    const r = await unlink(base, laptop!, github!.id);
+    assert.equal(r.status, 400);
+    assert.equal(((await r.json()) as { code: string }).code, 'FAILED_TO_UNLINK_LAST_ACCOUNT');
+    assert.equal((await accountsOf(base, laptop!)).length, 1);
+  });
+});
+
+test('a session older than a day is asked to sign in again before unlinking', async () => {
+  await withDevices([LAPTOP], async (base, [laptop], sessions, auth) => {
+    await linkGoogle(auth);
+    // Better Auth's freshAge is a day: unlink-account refuses older sessions.
+    sessions[0]!.createdAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    const page = await (await fetch(`${base}/account`, { headers: { cookie: laptop! } })).text();
+    assert.doesNotMatch(page, />Unlink /);
+    assert.match(page, /To unlink a provider, sign in again first[\s\S]*?>Sign in again<\/button>/);
+    const google = (await accountsOf(base, laptop!)).find((a) => a.providerId === 'google')!;
+    assert.equal((await unlink(base, laptop!, google.id)).status, 403);
+  });
+});
+
+test('a failed link shows a fixed message on the account page', async () => {
+  await withDevices([LAPTOP], async (base, [laptop]) => {
+    const page = async (error: string) => (await fetch(`${base}/account?error=${encodeURIComponent(error)}`, { headers: { cookie: laptop! } })).text();
+    assert.match(await page('account_already_linked_to_different_user'), /role="alert">That account is already linked to another user\.</);
+    const unknown = await page('<i>x</i>');
+    assert.match(unknown, /role="alert">Linking did not finish\. Try again\.</);
+    assert.doesNotMatch(unknown, /<i>x<\/i>/);
+  });
 });

@@ -4,7 +4,7 @@ import { returnName } from './apps.js';
 import type { Auth } from './auth.js';
 import { describeDevice } from './devices.js';
 import { accountPage, type SessionRow, signInPage, signOutPage } from './pages.js';
-import { refusalMessage, safeReturnTo } from './rules.js';
+import { linkErrorMessage, refusalMessage, safeReturnTo } from './rules.js';
 
 export type AppOptions = { baseURL: string; rootDomain: string; ping: () => Promise<void> };
 
@@ -51,7 +51,15 @@ export function createApp(auth: Auth, { baseURL, rootDomain, ping }: AppOptions)
     const sessions: SessionRow[] = (await activeSessions(current.user.id))
       .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
       .map((s) => ({ id: s.id, current: s.id === current.session.id, device: describeDevice(s.userAgent), ip: s.ipAddress ?? null, createdAt: s.createdAt, lastUsedAt: s.updatedAt }));
-    res.type('html').send(accountPage({ name: current.user.name ?? null, email: current.user.email }, accounts.map((a) => a.providerId), sessions));
+    // Better Auth's unlink-account needs a session younger than freshAge (#43).
+    const { freshAge } = (await auth.$context).sessionConfig;
+    const canUnlink = freshAge === 0 || Date.now() - new Date(current.session.createdAt).getTime() < freshAge * 1000;
+    res.type('html').send(
+      accountPage(
+        { name: current.user.name ?? null, email: current.user.email },
+        { linked: accounts.map((a) => ({ id: a.id, providerId: a.providerId })), sessions, canUnlink, error: linkErrorMessage(query(req.query.error)) },
+      ),
+    );
   });
 
   // Signs out one other session by its id, so session tokens never reach the page (#42). Better Auth's
