@@ -7,6 +7,7 @@ import { returnName } from './apps.js';
 import type { Auth } from './auth.js';
 import { describeDevice } from './devices.js';
 import { accountPage, type PasskeyRow, type SessionRow, signInPage, signOutPage } from './pages.js';
+import { renewSessionCookie } from './session-cookie.js';
 import { linkErrorMessage, refusalMessage, safeReturnTo } from './rules.js';
 
 // The browser half of the passkey flow (#54), served from the installed package instead of a CDN.
@@ -40,6 +41,9 @@ export function createApp(auth: Auth, { baseURL, rootDomain, ping }: AppOptions)
   const account = `${baseURL}/account`;
   const query = (v: unknown) => (typeof v === 'string' ? v : undefined);
   const session = (req: express.Request) => auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
+  // The browser cookie keeps the lifetime it got at sign-in; the auth pages renew it (#48).
+  const renew = async (req: express.Request, res: express.Response, current: { session: { expiresAt: Date | string } }) =>
+    renewSessionCookie(res, (await auth.$context).authCookies.sessionToken, req.headers.cookie, current.session.expiresAt);
   // Read through the adapter: Better Auth's list-sessions endpoint needs a session younger than a day.
   const activeSessions = async (userId: string) => {
     const now = new Date();
@@ -48,13 +52,18 @@ export function createApp(auth: Auth, { baseURL, rootDomain, ping }: AppOptions)
 
   app.get('/sign-in', async (req, res) => {
     const returnTo = safeReturnTo(query(req.query.returnTo), rootDomain, account);
-    if (await session(req)) return res.redirect(303, returnTo);
+    const current = await session(req);
+    if (current) {
+      await renew(req, res, current);
+      return res.redirect(303, returnTo);
+    }
     res.type('html').send(signInPage({ returnTo, appName: returnName(returnTo, baseURL), error: refusalMessage(query(req.query.error)) }));
   });
 
   app.get('/account', async (req, res) => {
     const current = await session(req);
     if (!current) return res.redirect(303, `/sign-in?returnTo=${encodeURIComponent(account)}`);
+    await renew(req, res, current);
     const accounts = await auth.api.listUserAccounts({ headers: fromNodeHeaders(req.headers) });
     const sessions: SessionRow[] = (await activeSessions(current.user.id))
       .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
