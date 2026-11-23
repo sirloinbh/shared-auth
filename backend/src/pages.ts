@@ -74,7 +74,28 @@ ${buttons}
   );
 }
 
-export function accountPage(user: { name: string | null; email: string }, linked: string[]): string {
+/** One active session on the account page. `device` is already a short name (devices.ts). */
+export type SessionRow = { id: string; current: boolean; device: string; ip: string | null; createdAt: Date; lastUsedAt: Date };
+
+// The owner lives in Seoul (the server's timers use Seoul time too), so times are shown in that zone.
+const TIME = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short' });
+const time = (d: Date) => `<time datetime="${d.toISOString()}">${escape(TIME.format(d))}</time>`;
+
+function sessionList(sessions: SessionRow[]): string {
+  const rows = sessions.map(
+    (s) => `<li><span class="grow"><span class="title">${escape(s.device)}</span><span class="meta">${s.ip ? `${escape(s.ip)} · ` : ''}signed in ${time(s.createdAt)} · last used ${time(s.lastUsedAt)}</span></span>${
+      s.current ? '<span class="badge">This device</span>' : button('/account/sessions/revoke', { id: s.id }, 'Sign out', { done: '/account', kind: 'small' })
+    }</li>`,
+  );
+  const others = sessions.filter((s) => !s.current).length;
+  return `<h2>Active sessions</h2>
+<ul class="list">
+${rows.join('\n')}
+</ul>
+${others > 1 ? button('/api/auth/revoke-other-sessions', {}, 'Sign out other devices', { done: '/account' }) : ''}`;
+}
+
+export function accountPage(user: { name: string | null; email: string }, linked: string[], sessions: SessionRow[] = []): string {
   const rows = PROVIDERS.map(
     (p) => `<li>${p.mark}<span class="grow">${escape(p.label)}</span>${
       linked.includes(p.id)
@@ -90,6 +111,7 @@ export function accountPage(user: { name: string | null; email: string }, linked
 <ul class="list">
 ${rows}
 </ul>
+${sessions.length ? sessionList(sessions) : ''}
 ${button('/api/auth/sign-out', {}, 'Sign out', { done: '/sign-in' })}`,
     'This account signs you in to every daysofme app.',
   );

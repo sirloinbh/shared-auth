@@ -12,7 +12,8 @@ One sign-in for every daysofme app ([ADR-0015](https://github.com/sirloinbh/proj
 | Path | What it does |
 |---|---|
 | `/sign-in?returnTo=<url>` | "Sign in to continue to <app>" with GitHub and Google buttons. `returnTo` must be HTTPS on `daysofme.com` or a subdomain; the app name comes from `backend/src/apps.ts` (a copy of the registry display names), and an unknown subdomain shows its host. A refused sign-in comes back here with the same `returnTo` and `error=<reason>`: `not_allowed` (email not in `ALLOWED_EMAILS`) or `second_user` (sign in with the first account, then link this one) show their own message; any other code shows a fixed default, never the query text |
-| `/account` | The signed-in owner, the linked providers, buttons to link the other one, and sign-out |
+| `/account` | The signed-in owner, the linked providers, buttons to link the other one, the active sessions, and sign-out. Each session shows its device (browser and system from the user agent), IP, sign-in time, and last use (Seoul time); the current one is marked "This device", and every other one has a "Sign out" button. With two or more other sessions, "Sign out other devices" ends them all. A signed-out device stays signed in to an app for up to 30 seconds, the `@sirloinbh/auth-client` cache |
+| `POST /account/sessions/revoke` | Used by the session "Sign out" buttons: `{ "id": "<session id>" }`, JSON only, from this service's origin. Ends one other session of the signed-in owner, so session tokens never reach the page |
 | `/sign-out?returnTo=<url>` | Ends the session for every app |
 | `/api/auth/*` | Better Auth (`get-session`, `sign-in/social`, `callback/github`, `callback/google`, `link-social`, `sign-out`, ...) |
 | `/api/health` | 200 when the database answers. The `api` container's Compose healthcheck calls it, so `docker compose ps` shows `healthy` and `docker compose up -d --wait` waits for it |
