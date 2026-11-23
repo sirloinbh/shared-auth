@@ -1,5 +1,5 @@
 {
-  "centralSha": "ecf825fb15cb0a03c924f7f1a20a1b7754fe0f73",
+  "centralSha": "36549e26b812382d3bc5ea45b580d895c7bb89cb",
   "profile": "service",
   "project": null,
   "files": {
@@ -20,17 +20,17 @@
     },
     ".claude/settings.json": {
       "mode": "full",
-      "sha256": "e67554ab7dd656ab57a1690d5a0ef18df592c96c562f482f92beb78045286003",
+      "sha256": "8d51ea098eea6b5e39be4ff909bafb425fa9c5a75c91563770ad123d1db4ce15",
       "source": "templates/common/.claude/settings.json.tmpl"
     },
     ".claude/skills/orca-lanes/SKILL.md": {
       "mode": "full",
-      "sha256": "c82722c8e36622482062325abb0761deb43b7d5b23bc33f5f93d27e973c2612c",
+      "sha256": "ddb86c6a9f8925d93993a8d753b329f63a46d847036eb737fac4c2c5ff803135",
       "source": "templates/common/skills/orca-lanes/SKILL.md"
     },
     ".claude/skills/std-backlog/SKILL.md": {
       "mode": "full",
-      "sha256": "d78c85e0ab7e5cde745e013ab27d62b9cbcb8979012ee2dc5fc7b80f309fb6a4",
+      "sha256": "63535252af86e608e0c4de21ec9f14dbbc4d1133d438c43594829c046816ad46",
       "source": "templates/common/skills/std-backlog/SKILL.md"
     },
     ".claude/skills/std-code-review/SKILL.md": {
@@ -105,7 +105,7 @@
     },
     ".github/workflows/ci.yml": {
       "mode": "full",
-      "sha256": "f1da4aef83afc74854c361bf5764832acbe104be858fd7c28706d7a5c838db1e",
+      "sha256": "786d3dec86802b1e3e90965b7abbd83b1a9b242ea35ee2d79beaec2541d515f4",
       "source": "templates/service/.github/workflows/ci.yml.tmpl"
     },
     ".gitignore": {
@@ -130,7 +130,7 @@
     },
     ".standards/check.mjs": {
       "mode": "full",
-      "sha256": "9189de77515827bb3fe6e4875c0808d9a3d58e87d134659058498aff7e8f4cd6",
+      "sha256": "e6631a5aa873e18716d82468846ce83bdd157bf867403778b411ceb3592dad32",
       "source": "scripts/standards-check.mjs"
     },
     ".standards/ioc-scan.mjs": {
@@ -249,12 +249,12 @@
     },
     "deploy/notify.sh": {
       "mode": "full",
-      "sha256": "6a1077cb061f837c8a2bd17803893bc2d7f94828d7b9272211ffc8424c419c68",
+      "sha256": "05040ef53fb2dfcf2d0d9397749ab679b3f8dddd68a01e8281bb8ccac025ab8f",
       "source": "templates/deploy/deploy/notify.sh.tmpl"
     },
     "deploy/remote-deploy.sh": {
       "mode": "full",
-      "sha256": "a213ed7b58d4564abcc1bb6e47e731f950167b4a7463756abaac486ab46758ee",
+      "sha256": "e4ed0fb142bcb923698fe74973b01baaac3a0c06cc43201ac2c3a014358d2661",
       "source": "templates/deploy/deploy/remote-deploy.sh.tmpl"
     },
     "deploy/report.service": {
@@ -264,7 +264,7 @@
     },
     "deploy/report.sh": {
       "mode": "full",
-      "sha256": "715926c34d8b8419b61b846d5e13313c10bc7e2ea6494006e010257d127d73ca",
+      "sha256": "308b10e6b563ee678ca83e841c93fcb3047a27bf905ca01994b6ff34d7a23a3e",
       "source": "templates/deploy/deploy/report.sh.tmpl"
     },
     "deploy/report.timer": {
@@ -289,12 +289,12 @@
     },
     "skills/orca-lanes/SKILL.md": {
       "mode": "full",
-      "sha256": "c82722c8e36622482062325abb0761deb43b7d5b23bc33f5f93d27e973c2612c",
+      "sha256": "ddb86c6a9f8925d93993a8d753b329f63a46d847036eb737fac4c2c5ff803135",
       "source": "templates/common/skills/orca-lanes/SKILL.md"
     },
     "skills/std-backlog/SKILL.md": {
       "mode": "full",
-      "sha256": "d78c85e0ab7e5cde745e013ab27d62b9cbcb8979012ee2dc5fc7b80f309fb6a4",
+      "sha256": "63535252af86e608e0c4de21ec9f14dbbc4d1133d438c43594829c046816ad46",
       "source": "templates/common/skills/std-backlog/SKILL.md"
     },
     "skills/std-code-review/SKILL.md": {
