@@ -1,10 +1,16 @@
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import express from 'express';
 import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { returnName } from './apps.js';
 import type { Auth } from './auth.js';
 import { describeDevice } from './devices.js';
-import { accountPage, type SessionRow, signInPage, signOutPage } from './pages.js';
+import { accountPage, type PasskeyRow, type SessionRow, signInPage, signOutPage } from './pages.js';
 import { linkErrorMessage, refusalMessage, safeReturnTo } from './rules.js';
+
+// The browser half of the passkey flow (#54), served from the installed package instead of a CDN.
+const WEBAUTHN_JS = readFileSync(join(dirname(createRequire(import.meta.url).resolve('@simplewebauthn/browser')), '..', 'dist', 'bundle', 'index.umd.min.js'), 'utf8');
 
 export type AppOptions = { baseURL: string; rootDomain: string; ping: () => Promise<void> };
 
@@ -28,6 +34,8 @@ export function createApp(auth: Auth, { baseURL, rootDomain, ping }: AppOptions)
       res.status(503).json({ status: 'db_unavailable' });
     }
   });
+
+  app.get('/assets/webauthn.js', (_req, res) => res.type('text/javascript').send(WEBAUTHN_JS));
 
   const account = `${baseURL}/account`;
   const query = (v: unknown) => (typeof v === 'string' ? v : undefined);
@@ -54,10 +62,11 @@ export function createApp(auth: Auth, { baseURL, rootDomain, ping }: AppOptions)
     // Better Auth's unlink-account needs a session younger than freshAge (#43).
     const { freshAge } = (await auth.$context).sessionConfig;
     const canUnlink = freshAge === 0 || Date.now() - new Date(current.session.createdAt).getTime() < freshAge * 1000;
+    const passkeys = await (await auth.$context).adapter.findMany<PasskeyRow>({ model: 'passkey', where: [{ field: 'userId', value: current.user.id }] });
     res.type('html').send(
       accountPage(
         { name: current.user.name ?? null, email: current.user.email },
-        { linked: accounts.map((a) => ({ id: a.id, providerId: a.providerId })), sessions, canUnlink, error: linkErrorMessage(query(req.query.error)) },
+        { linked: accounts.map((a) => ({ id: a.id, providerId: a.providerId })), sessions, passkeys, canUnlink, error: linkErrorMessage(query(req.query.error)) },
       ),
     );
   });

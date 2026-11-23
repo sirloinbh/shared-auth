@@ -16,7 +16,7 @@ const config: AuthConfig = {
 };
 
 function setup({ ping = async () => {}, production = false } = {}) {
-  const db: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [] };
+  const db: Record<string, unknown[]> = { user: [], session: [], account: [], verification: [], passkey: [] };
   const auth = createAuth({ ...config, production }, memoryAdapter(db), async () => db.user!.length, () => {});
   return { auth, db, app: createApp(auth, { baseURL: config.baseURL, rootDomain: config.rootDomain, ping }) };
 }

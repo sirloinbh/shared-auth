@@ -1,4 +1,4 @@
-// The three pages people see: sign in, account (link the other provider), sign out.
+// The three pages people see: sign in, account (link the other provider, manage passkeys), sign out.
 // Plain HTML with a few lines of script; the buttons call Better Auth's own endpoints.
 import { STYLES } from './styles.js';
 
@@ -15,7 +15,7 @@ const PROVIDERS = [
 const escape = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 /** The centered card every page uses: the service name above, the page content and an error line, and a note below. */
-function layout(title: string, card: string, note: string, error = ''): string {
+function layout(title: string, card: string, note: string, error = '', scripts = SCRIPT): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -34,7 +34,7 @@ ${card}
 </section>
 <p class="note">${note}</p>
 </main>
-${SCRIPT}
+${scripts}
 </body>
 </html>`;
 }
@@ -54,6 +54,40 @@ for (const b of document.querySelectorAll('button[data-endpoint]')) {
 }
 </script>`;
 
+// Passkey buttons (#54): fetch the WebAuthn options, let the browser create or use the passkey
+// (@simplewebauthn/browser, served at /assets/webauthn.js), then send the result back to Better Auth.
+const PASSKEY_SCRIPT = `<script src="/assets/webauthn.js"></script>
+<script>
+const passkeyCall = async (path, init) => {
+  const r = await fetch('/api/auth/passkey/' + path, { credentials: 'same-origin', ...init });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.message || 'Something went wrong. Try again.');
+  return data;
+};
+const passkeyPost = (path, body) => passkeyCall(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+for (const b of document.querySelectorAll('button[data-passkey]')) {
+  b.addEventListener('click', async () => {
+    b.disabled = true;
+    try {
+      const register = b.dataset.passkey === 'register';
+      const optionsJSON = await passkeyCall(register ? 'generate-register-options' : 'generate-authenticate-options');
+      const { clientExtensionResults, ...response } = register
+        ? await SimpleWebAuthnBrowser.startRegistration({ optionsJSON })
+        : await SimpleWebAuthnBrowser.startAuthentication({ optionsJSON });
+      await passkeyPost(register ? 'verify-registration' : 'verify-authentication', { response });
+      location.assign(b.dataset.done);
+    } catch (e) {
+      b.disabled = false;
+      document.querySelector('#error').textContent = e && e.name === 'NotAllowedError' ? 'The passkey request was cancelled or timed out.' : (e && e.message) || 'Something went wrong. Try again.';
+    }
+  });
+}
+</script>`;
+
+/** A button that runs the passkey flow, then goes to `done`. */
+const passkeyButton = (flow: 'register' | 'sign-in', done: string, content: string, kind: 'outline' | 'small' = 'outline') =>
+  `<button type="button" class="${kind}" data-passkey="${flow}" data-done="${escape(done)}">${content}</button>`;
+
 /** A button that posts `body` to `endpoint`. `content` is trusted HTML (marks and escaped labels). */
 const button = (endpoint: string, body: object, content: string, { done, kind = 'outline' }: { done?: string; kind?: 'outline' | 'primary' | 'small' | 'link' } = {}) =>
   `<button type="button" class="${kind}" data-endpoint="${endpoint}" data-body="${escape(JSON.stringify(body))}"${done ? ` data-done="${escape(done)}"` : ''}>${content}</button>`;
@@ -68,9 +102,11 @@ export function signInPage({ returnTo, appName, error }: { returnTo: string; app
 <p class="lead">to continue to <strong>${escape(appName)}</strong></p>
 <div class="stack">
 ${buttons}
+${passkeyButton('sign-in', returnTo, '<span>Sign in with a passkey</span>')}
 </div>`,
     `After you sign in, you return to ${escape(appName)}. One sign-in works for every daysofme app.`,
     error,
+    SCRIPT + PASSKEY_SCRIPT,
   );
 }
 
@@ -95,19 +131,36 @@ ${rows.join('\n')}
 ${others > 1 ? button('/api/auth/revoke-other-sessions', {}, 'Sign out other devices', { done: '/account' }) : ''}`;
 }
 
+/** A passkey registered on /account, as the account page lists it. */
+export type PasskeyRow = { id: string; name: string | null; createdAt: Date };
+
+function passkeyList(passkeys: PasskeyRow[]): string {
+  const rows = passkeys.map(
+    (k) =>
+      `<li><span class="grow"><span class="title">${escape(k.name || 'Passkey')}</span><span class="meta">added ${time(k.createdAt)}</span></span>${button('/api/auth/passkey/delete-passkey', { id: k.id }, 'Remove', { done: '/account', kind: 'small' })}</li>`,
+  );
+  return `<h2>Passkeys</h2>
+<p class="lead">A passkey signs you in if GitHub and Google are both unavailable. Add one on each device you use.</p>
+<ul class="list">
+${rows.join('\n') || '<li><span class="grow muted">No passkey yet</span></li>'}
+</ul>
+${passkeyButton('register', '/account', 'Add a passkey', 'small')}`;
+}
+
 /** A linked provider: Better Auth's account row id (what unlink-account takes) and the provider. */
 export type LinkedAccount = { id: string; providerId: string };
 
 export type AccountView = {
   linked: LinkedAccount[];
   sessions?: SessionRow[];
+  passkeys?: PasskeyRow[];
   /** Better Auth unlinks only from a session younger than its freshAge; older ones must sign in again. */
   canUnlink?: boolean;
   /** A fixed message for a failed link (rules.ts linkErrorMessage), never the query text. */
   error?: string;
 };
 
-export function accountPage(user: { name: string | null; email: string }, { linked, sessions = [], canUnlink = true, error }: AccountView): string {
+export function accountPage(user: { name: string | null; email: string }, { linked, sessions = [], passkeys = [], canUnlink = true, error }: AccountView): string {
   // The last provider can never be unlinked: it is the only way to sign in.
   const unlinkable = linked.length > 1;
   const rows = PROVIDERS.map((p) => {
@@ -127,10 +180,12 @@ export function accountPage(user: { name: string | null; email: string }, { link
 ${rows}
 </ul>
 ${unlinkNote}
+${passkeyList(passkeys)}
 ${sessions.length ? sessionList(sessions) : ''}
 ${button('/api/auth/sign-out', {}, 'Sign out', { done: '/sign-in' })}`,
     'This account signs you in to every daysofme app.',
     error,
+    SCRIPT + PASSKEY_SCRIPT,
   );
 }
 
