@@ -6,8 +6,26 @@ import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { returnName } from './apps.js';
 import type { Auth } from './auth.js';
 import { describeDevice } from './devices.js';
-import { accountPage, type PasskeyRow, type SessionRow, signInPage, signOutPage } from './pages.js';
+import { accountPage, PASSKEY_SCRIPT, type PasskeyRow, SCRIPT, type SessionRow, signInPage, signOutPage } from './pages.js';
 import { linkErrorMessage, refusalMessage, safeReturnTo } from './rules.js';
+import { STYLES } from './styles.js';
+
+/**
+ * The Content-Security-Policy of every response (#38): only this service's own files and endpoints. The
+ * pages load /assets/pages.css and /assets/pages.js and have no inline code; the buttons fetch this
+ * service's endpoints and then navigate (which the policy does not limit) to GitHub, Google, or an app.
+ */
+export const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self'",
+  "img-src 'self'",
+  "connect-src 'self'",
+  "form-action 'self'",
+  "base-uri 'none'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+].join('; ');
 
 // The browser half of the passkey flow (#54), served from the installed package instead of a CDN.
 const WEBAUTHN_JS = readFileSync(join(dirname(createRequire(import.meta.url).resolve('@simplewebauthn/browser')), '..', 'dist', 'bundle', 'index.umd.min.js'), 'utf8');
@@ -19,7 +37,7 @@ export function createApp(auth: Auth, { baseURL, rootDomain, ping }: AppOptions)
   app.disable('x-powered-by');
   app.set('trust proxy', 'loopback');
   app.use((_req, res, next) => {
-    res.set({ 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'Content-Security-Policy': "frame-ancestors 'none'", 'Cache-Control': 'no-store' });
+    res.set({ 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'Content-Security-Policy': CONTENT_SECURITY_POLICY, 'Cache-Control': 'no-store' });
     next();
   });
 
@@ -35,7 +53,6 @@ export function createApp(auth: Auth, { baseURL, rootDomain, ping }: AppOptions)
     }
   });
 
-  app.get('/assets/webauthn.js', (_req, res) => res.type('text/javascript').send(WEBAUTHN_JS));
 
   const account = `${baseURL}/account`;
   const query = (v: unknown) => (typeof v === 'string' ? v : undefined);
@@ -90,6 +107,14 @@ export function createApp(auth: Auth, { baseURL, rootDomain, ping }: AppOptions)
     const returnTo = safeReturnTo(query(req.query.returnTo), rootDomain, account);
     res.type('html').send(signOutPage({ returnTo, appName: returnName(returnTo, baseURL) }));
   });
+
+  // The pages' stylesheet and script. They change only with a deploy, so the browser may keep them but
+  // checks the ETag each time (no-cache) instead of the no-store the pages get.
+  const asset = (type: string, body: string) => (_req: express.Request, res: express.Response) => void res.set('Cache-Control', 'no-cache').type(type).send(body);
+  app.get('/assets/pages.css', asset('css', STYLES));
+  app.get('/assets/pages.js', asset('js', SCRIPT));
+  app.get('/assets/passkey.js', asset('js', PASSKEY_SCRIPT));
+  app.get('/assets/webauthn.js', asset('js', WEBAUTHN_JS));
 
   app.get('/', (_req, res) => res.redirect(303, '/account'));
   return app;

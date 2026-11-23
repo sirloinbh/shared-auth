@@ -13,17 +13,24 @@ const pages = {
   'sign-out': signOutPage({ returnTo: app, appName: 'FORM · My Workout Log' }),
 };
 
-test('every page uses the shared design token values in light and dark mode', () => {
-  for (const [name, page] of Object.entries(pages)) {
-    assert.match(page, /--background: oklch\(1 0 0\)/, name);
-    assert.match(page, /--primary: oklch\(0\.205 0 0\)/, name);
-    assert.match(page, /--radius: 0\.625rem/, name);
-    assert.match(page, /"Pretendard Variable", Pretendard/, name);
-    assert.match(page, /@media \(prefers-color-scheme: dark\)[\s\S]*--background: oklch\(0\.145 0 0\)/, name);
-    assert.match(page, /<section class="card">/, name);
-  }
+test('the stylesheet uses the shared design token values in light and dark mode', () => {
+  assert.match(STYLES, /--background: oklch\(1 0 0\)/);
+  assert.match(STYLES, /--primary: oklch\(0\.205 0 0\)/);
+  assert.match(STYLES, /--radius: 0\.625rem/);
+  assert.match(STYLES, /"Pretendard Variable", Pretendard/);
+  assert.match(STYLES, /@media \(prefers-color-scheme: dark\)[\s\S]*--background: oklch\(0\.145 0 0\)/);
   // Brand colors live only in the Google mark; the stylesheet uses token values alone.
   assert.doesNotMatch(STYLES, /#[0-9a-f]{3,8}\b/i);
+});
+
+test('every page loads the shared stylesheet and script and has no inline code', () => {
+  for (const [name, page] of Object.entries(pages)) {
+    assert.match(page, /<link rel="stylesheet" href="\/assets\/pages\.css" \/>/, name);
+    assert.match(page, /<script src="\/assets\/pages\.js"><\/script>/, name);
+    assert.match(page, /<section class="card">/, name);
+    // The Content-Security-Policy (#38) blocks inline code: no <style>, no script body, no style or on* attributes.
+    assert.doesNotMatch(page, /<style|<script>|<script [^>]*>[^<]|\sstyle=|\son[a-z]+=/i, name);
+  }
 });
 
 test('the token copy names a released design-tokens version', () => {
