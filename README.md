@@ -81,7 +81,7 @@ Every request except `/api/health` writes one JSON line when it ends (#64, `back
 | `path` | Without the query string, so the OAuth `code` and `state` and `returnTo` stay out of the log |
 | `status`, `ms` | `499` with `"aborted":true` when the client went away first |
 
-The line holds no body, header, or cookie. `/api/health` is not logged, because the Compose healthcheck calls it every 5 seconds. To follow an app request: `docker compose logs api | grep '"requestId":"5f0c'`.
+The line holds no body, header, or cookie. `/api/health` is not logged, because the Compose healthcheck calls it every 5 seconds. To follow an app request: `docker logs shared-auth-api-1 2>&1 | grep '"requestId":"5f0c'`. Read the logs with `docker logs`, not `docker compose logs`: Compose needs the SSM secrets in the shell to read `compose.yaml` and stops with "required variable ... is missing a value" (only `deploy/deploy.sh` loads them).
 
 ## Sign-in records
 
@@ -102,14 +102,14 @@ Every sign-in outcome writes one JSON line to the `api` logs (#33, `backend/src/
 | `requestId` | The ID of the request that signed in, the same as on its request line (#64) |
 | `ip`, `userAgent` | The client address as Better Auth reads it for the session row, and the user agent (cut to 300 characters) |
 
-No token, cookie, or full email is logged. To list them on the server: `docker compose logs api | grep '"event":"sign_in"'`.
+No token, cookie, or full email is logged. To list them on the server: `docker logs shared-auth-api-1 2>&1 | grep '"event":"sign_in"'`.
 
 ## New sign-in alert
 
 A successful sign-in from an IP or a device the owner has not signed in from before publishes one message to the shared SNS topic of the server signals (#36, #61, `backend/src/new-device.ts`, `backend/src/sns.ts`; topic and IAM user from project-standards#1091 and shared-aws-infrastructure#105), which sends it on to the owner's subscription. The device is the user agent without its version numbers, so a browser update is not a new device. The message names what is new, the provider, the IP, the user agent, and the time; no email address, token, or cookie.
 
 - Every successful sign-in is remembered in the `sign_in_seen` table (user id, `ip` or `device`, a SHA-256 hash of the value, first seen), also while the alert is off. Turning the alert on later therefore reports only places not seen since the first deploy with #36.
-- The alert is off unless all four keys are set: `AWS_ALERT_REGION`, `AWS_ALERT_ACCESS_KEY_ID`, `AWS_ALERT_SECRET_ACCESS_KEY`, `AWS_ALERT_TOPIC_ARN` (`.env.example`; all four come from SSM under `/sirloinbh/shared-auth/alert-*`). The IAM user is the alert user of #105, which may only `sns:Publish` on that topic (and send the server metrics). The start log says `new sign-in alert: sns on` or `off`.
+- The alert is off unless all four keys are set: `AWS_ALERT_REGION`, `AWS_ALERT_ACCESS_KEY_ID`, `AWS_ALERT_SECRET_ACCESS_KEY`, `AWS_ALERT_TOPIC_ARN` (`.env.example`; all four come from SSM under `/sirloinbh/shared-auth/alert-*`). The IAM user is the alert user of #105, which may only `sns:Publish` on that topic (and send the server metrics). The start log says `new sign-in alert: sns on` or `off` (check with `docker logs shared-auth-api-1 2>&1 | grep "new sign-in alert"`).
 - The request is signed with AWS Signature Version 4 from `node:crypto` and sent with `fetch`; there is no AWS SDK package.
 - A failed send never blocks the sign-in. It writes one `"level":"error"` line (`"event":"sign_in_alert_failed"`, the HTTP status only), which the daily report counts.
 
