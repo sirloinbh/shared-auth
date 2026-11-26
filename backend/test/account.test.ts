@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { memoryAdapter } from 'better-auth/adapters/memory';
 import { createApp } from '../src/app.js';
+import { PASSKEY_SCRIPT } from '../src/pages.js';
 import { type Auth, type AuthConfig, createAuth } from '../src/auth.js';
 import { describeDevice } from '../src/devices.js';
 import { BASE_URL, sessionCookie, signInWithGitHub } from './github.js';
@@ -156,6 +157,25 @@ test('a session older than a day is asked to sign in again before unlinking', as
     const google = (await accountsOf(base, laptop!)).find((a) => a.providerId === 'google')!;
     assert.equal((await unlink(base, laptop!, google.id)).status, 403);
   });
+});
+
+test('a fresh session can add a passkey; one older than a day is asked to sign in again', async () => {
+  await withDevices([LAPTOP], async (base, [laptop], sessions) => {
+    const fresh = await (await fetch(`${base}/account`, { headers: { cookie: laptop! } })).text();
+    assert.match(fresh, /data-passkey="register"/);
+    assert.doesNotMatch(fresh, /Sign in again to add a passkey/);
+    sessions[0]!.createdAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    const stale = await (await fetch(`${base}/account`, { headers: { cookie: laptop! } })).text();
+    assert.doesNotMatch(stale, /data-passkey="register"/);
+    assert.match(stale, /Sign in again to add a passkey[\s\S]*?>Sign in again<\/button>/);
+    const r = await fetch(`${base}/api/auth/passkey/generate-register-options`, { headers: { cookie: laptop!, 'x-real-ip': '203.0.113.50' } });
+    assert.equal(r.status, 403);
+    assert.equal(((await r.json()) as { code: string }).code, 'SESSION_NOT_FRESH');
+  });
+});
+
+test('the passkey script shows a fixed message for SESSION_NOT_FRESH, not the server text', () => {
+  assert.match(PASSKEY_SCRIPT, /data\.code === 'SESSION_NOT_FRESH' \? 'Sign in again to add a passkey/);
 });
 
 test('a failed link shows a fixed message on the account page', async () => {

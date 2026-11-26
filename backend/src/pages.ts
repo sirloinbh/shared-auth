@@ -59,7 +59,7 @@ export const SCRIPT = `for (const b of document.querySelectorAll('button[data-en
 export const PASSKEY_SCRIPT = `const passkeyCall = async (path, init) => {
   const r = await fetch('/api/auth/passkey/' + path, { credentials: 'same-origin', ...init });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.message || 'Something went wrong. Try again.');
+  if (!r.ok) throw new Error(data.code === 'SESSION_NOT_FRESH' ? 'Sign in again to add a passkey: it needs a sign-in from the last day.' : data.message || 'Something went wrong. Try again.');
   return data;
 };
 const passkeyPost = (path, body) => passkeyCall(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -135,7 +135,7 @@ ${others > 1 ? button('/api/auth/revoke-other-sessions', {}, 'Sign out other dev
 /** A passkey registered on /account, as the account page lists it. */
 export type PasskeyRow = { id: string; name: string | null; createdAt: Date };
 
-function passkeyList(passkeys: PasskeyRow[]): string {
+function passkeyList(passkeys: PasskeyRow[], canAdd: boolean): string {
   const rows = passkeys.map(
     (k) =>
       `<li><span class="grow"><span class="title">${escape(k.name || 'Passkey')}</span><span class="meta">added ${time(k.createdAt)}</span></span>${button('/api/auth/passkey/delete-passkey', { id: k.id }, 'Remove', { done: '/account', kind: 'small' })}</li>`,
@@ -145,7 +145,7 @@ function passkeyList(passkeys: PasskeyRow[]): string {
 <ul class="list">
 ${rows.join('\n') || '<li><span class="grow muted">No passkey yet</span></li>'}
 </ul>
-${passkeyButton('register', '/account', 'Add a passkey', 'small')}`;
+${canAdd ? passkeyButton('register', '/account', 'Add a passkey', 'small') : `<p class="hint">Sign in again to add a passkey: it needs a sign-in from the last day. ${button('/api/auth/sign-out', {}, 'Sign in again', { done: '/sign-in', kind: 'link' })}</p>`}`;
 }
 
 /** A linked provider: Better Auth's account row id (what unlink-account takes) and the provider. */
@@ -155,7 +155,7 @@ export type AccountView = {
   linked: LinkedAccount[];
   sessions?: SessionRow[];
   passkeys?: PasskeyRow[];
-  /** Better Auth unlinks only from a session younger than its freshAge; older ones must sign in again. */
+  /** Better Auth unlinks and registers a passkey only from a session younger than its freshAge; older ones must sign in again. Removing a passkey needs no fresh session. */
   canUnlink?: boolean;
   /** A fixed message for a failed link (rules.ts linkErrorMessage), never the query text. */
   error?: string;
@@ -181,7 +181,7 @@ export function accountPage(user: { name: string | null; email: string }, { link
 ${rows}
 </ul>
 ${unlinkNote}
-${passkeyList(passkeys)}
+${passkeyList(passkeys, canUnlink)}
 ${sessions.length ? sessionList(sessions) : ''}
 ${button('/api/auth/sign-out', {}, 'Sign out', { done: '/sign-in' })}`,
     'This account signs you in to every daysofme app.',
