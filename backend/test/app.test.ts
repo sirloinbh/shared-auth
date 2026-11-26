@@ -232,3 +232,21 @@ test('every response carries the strict Content-Security-Policy, and the assets 
     assert.match(await passkey.text(), /SimpleWebAuthnBrowser\.startRegistration/);
   });
 });
+
+test('the about and privacy pages are public, plain pages the Google consent screen can link to', async () => {
+  await serve(setup().app, async (base) => {
+    for (const path of ['/about', '/privacy']) {
+      const r = await fetch(`${base}${path}`, { redirect: 'manual' });
+      assert.equal(r.status, 200, path);
+      assert.match(r.headers.get('content-type') ?? '', /text\/html/);
+      assert.equal(r.headers.get('content-security-policy'), CONTENT_SECURITY_POLICY);
+      const page = await r.text();
+      assert.doesNotMatch(page, /<script|<style|style=|\son\w+=/i, path);
+    }
+    const privacy = await (await fetch(`${base}/privacy`)).text();
+    for (const text of [/calendar\.app\.created/, /encrypted/, /not shared with anyone, sold/, /Disconnect/, /myaccount\.google\.com\/permissions/, /email address/]) assert.match(privacy, text);
+    const about = await (await fetch(`${base}/about`)).text();
+    assert.match(about, /href="\/privacy"/);
+    assert.match(privacy, /href="\/about"/);
+  });
+});

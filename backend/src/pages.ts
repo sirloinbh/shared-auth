@@ -15,7 +15,7 @@ const PROVIDERS = [
 const escape = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 /** The centered card every page uses: the service name above, the page content and an error line, a note below, and the scripts it loads. */
-function layout(title: string, card: string, note: string, error = '', scripts: string[] = ['/assets/pages.js']): string {
+function layout(title: string, card: string, note: string, error = '', scripts: string[] = ['/assets/pages.js'], wide = false): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -26,7 +26,7 @@ function layout(title: string, card: string, note: string, error = '', scripts: 
 <link rel="stylesheet" href="/assets/pages.css" />
 </head>
 <body>
-<main>
+<main${wide ? ' class="wide"' : ''}>
 <p class="brand">daysofme</p>
 <section class="card">
 ${card}
@@ -197,5 +197,62 @@ export function signOutPage({ returnTo, appName }: { returnTo: string; appName: 
 <p class="lead">This signs you out of every daysofme app.</p>
 ${button('/api/auth/sign-out', {}, 'Sign out', { done: `/sign-in?returnTo=${encodeURIComponent(returnTo)}`, kind: 'primary' })}`,
     `You can sign in again to return to ${escape(appName)}.`,
+  );
+}
+
+/** What daysofme is (#77): the application home page the Google consent screen asks for. Public, no scripts. */
+export function aboutPage(): string {
+  return layout(
+    'About',
+    `<h1>About daysofme</h1>
+<p class="lead">Personal apps for one owner</p>
+<div class="doc">
+<p>daysofme is a small set of personal apps, such as a study log, a workout memo and a money ledger. They are built and used by one person, the owner. They are not offered to the public, and nobody else can create an account.</p>
+<h2>Sign-in</h2>
+<p>All the apps share one sign-in at auth.daysofme.com. The owner signs in with a Google or GitHub account. Only the owner's email address is allowed, and a signed-out visitor sees the sign-in page and nothing else.</p>
+<h2>Google features</h2>
+<p>Google is used for sign-in. The study log app can also copy its study schedule and review dates to a separate calendar named "Study log", which it creates in the owner's Google account. See the <a href="/privacy">privacy policy</a> for exactly what is used.</p>
+</div>`,
+    '<a href="/privacy">Privacy policy</a>',
+    '',
+    [],
+    true,
+  );
+}
+
+/** The privacy policy (#77): what Google data is used, where it is kept, and how to revoke it. Public, no scripts. */
+export function privacyPage(): string {
+  return layout(
+    'Privacy policy',
+    `<h1>Privacy policy</h1>
+<p class="lead">How daysofme uses your Google data</p>
+<div class="doc">
+<p>daysofme is a set of personal apps used by its owner alone (see <a href="/about">About</a>). This page says what data the apps use, including data from Google.</p>
+<h2>Sign-in data</h2>
+<p>When you sign in with Google or GitHub, the apps receive your account's profile name and email address. They are used only to check that the email is the owner's and to show who is signed in. Sign-in sessions are kept in the sign-in service's database until they expire or you sign out.</p>
+<h2>Google Calendar data (study log)</h2>
+<p>If you choose "Connect Google Calendar" in the study log's Settings, the app asks for one permission: the Google Calendar scope <code>calendar.app.created</code>. It lets the app create its own calendar, named "Study log", and add, change and delete events on that calendar. It cannot see or change your other calendars or their events.</p>
+<ul>
+<li>What is sent to Google: event titles and dates for planned study days and review due dates, such as the schedule title, the review round, and the textbook or chapter name. Notes, memos and exercise text are never sent.</li>
+<li>What is read from Google: only the answers to the app's own requests, such as the calendar's ID. Changes you make in Google Calendar are not read back.</li>
+<li>What is stored: the long-term access token (refresh token) Google gives the app. It is stored encrypted in the study log's database, and it is never written to logs.</li>
+</ul>
+<h2>Sharing and selling</h2>
+<p>Your data is not shared with anyone, sold, or used for advertising or for training AI models. The apps use your Google data only to provide the features above. They do not use it for anything else.</p>
+<h2>How to revoke access</h2>
+<ul>
+<li>In the study log, open Settings and choose "Disconnect" under Google Calendar. The app forgets the token and revokes the access. The "Study log" calendar stays in your Google account, and you can delete it there.</li>
+<li>Or remove daysofme under "Third-party apps and services" in your Google account's security settings (myaccount.google.com/permissions). The app then can no longer reach your calendar.</li>
+<li>To stop signing in with Google, sign in to auth.daysofme.com/account and unlink Google (GitHub stays linked).</li>
+</ul>
+<h2>Keeping and deleting data</h2>
+<p>Calendar sync data is deleted when you disconnect. Study records belong to the owner and stay on the owner's own server until the owner deletes them.</p>
+<h2>Changes</h2>
+<p>If the way data is used changes, this page is updated before the change takes effect.</p>
+</div>`,
+    '<a href="/about">About daysofme</a>',
+    '',
+    [],
+    true,
   );
 }
