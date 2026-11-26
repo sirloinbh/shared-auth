@@ -6,7 +6,7 @@ import { fromNodeHeaders, toNodeHandler } from 'better-auth/node';
 import { returnName } from './apps.js';
 import type { Auth } from './auth.js';
 import { describeDevice } from './devices.js';
-import { accountPage, PASSKEY_SCRIPT, type PasskeyRow, SCRIPT, type SessionRow, signInPage, signOutPage } from './pages.js';
+import { aboutPage, accountPage, PASSKEY_SCRIPT, privacyPage, type PasskeyRow, SCRIPT, type SessionRow, signInPage, signOutPage } from './pages.js';
 import { requestLog } from './request-log.js';
 import { renewSessionCookie } from './session-cookie.js';
 import { linkErrorMessage, refusalMessage, safeReturnTo } from './rules.js';
@@ -130,6 +130,10 @@ export function createApp(auth: Auth, { baseURL, rootDomain, ping }: AppOptions)
   app.get('/assets/pages.js', asset('js', SCRIPT));
   app.get('/assets/passkey.js', asset('js', PASSKEY_SCRIPT));
   app.get('/assets/webauthn.js', asset('js', WEBAUTHN_JS));
+
+  // Public pages the Google consent screen asks for (#77): no session, no scripts.
+  app.get('/about', (_req, res) => void res.type('html').send(aboutPage()));
+  app.get('/privacy', (_req, res) => void res.type('html').send(privacyPage()));
 
   app.get('/', (_req, res) => res.redirect(303, '/account'));
   return app;

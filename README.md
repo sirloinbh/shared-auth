@@ -17,6 +17,7 @@ One sign-in for every daysofme app ([ADR-0015](https://github.com/sirloinbh/proj
 | `POST /account/sessions/revoke` | Used by the session "Sign out" buttons: `{ "id": "<session id>" }`, JSON only, from this service's origin. Ends one other session of the signed-in owner, so session tokens never reach the page |
 | `/assets/webauthn.js` | The browser half of the passkey flow (`@simplewebauthn/browser`, served from the installed package) |
 | `/sign-out?returnTo=<url>` | Ends the session for every app |
+| `/about`, `/privacy` | Public pages that need no sign-in (#77): what daysofme is, and the privacy policy (Google data used: sign-in profile and email; for study-log only the calendars it creates and their events, refresh token stored encrypted, nothing shared or sold; how to revoke). They are the application home page and privacy policy links of the Google OAuth consent screen of the GCP project `daysofme-auth`, so change them with care and keep them in step with what the apps use |
 | `/api/auth/*` | Better Auth (`get-session`, `sign-in/social`, `callback/github`, `callback/google`, `link-social`, `sign-out`, ...) |
 | `/assets/pages.css`, `/assets/pages.js`, `/assets/passkey.js` | The pages' stylesheet, button script, and passkey button script, served as files so the pages have no inline code (`Cache-Control: no-cache`, as `/assets/webauthn.js`) |
 | `/api/health` | 200 when the database answers. The `api` container's Compose healthcheck calls it, so `docker compose ps` shows `healthy` and `docker compose up -d --wait` waits for it |

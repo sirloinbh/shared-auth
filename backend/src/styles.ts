@@ -55,6 +55,11 @@ export const STYLES = `
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 1.5rem 1rem; background: var(--background); color: var(--foreground); font: 400 1rem/1.6 var(--font-family-sans); -webkit-font-smoothing: antialiased; }
   main { width: min(24rem, 100%); display: grid; gap: 1rem; }
+  main.wide { width: min(40rem, 100%); }
+  .doc { display: grid; gap: 0.75rem; font-size: 0.875rem; line-height: 1.5rem; }
+  .doc ul { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.5rem; }
+  a { color: inherit; text-underline-offset: 2px; }
+  code { font-size: 0.8125rem; overflow-wrap: anywhere; }
   p { margin: 0; }
   .brand { text-align: center; font-size: 1.125rem; line-height: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
   .card { display: grid; gap: 1rem; padding: 2rem 1.5rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); color: var(--card-foreground); box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); }
